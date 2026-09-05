@@ -3,23 +3,21 @@ name: A.M.S. autonomous scheduler
 # This is the free replacement for a long-running scheduler process. GitHub
 # Actions' scheduled workflows are free on both public and private repos
 # (private repos get a monthly minutes allowance on the free plan; this job
-# runs in seconds, so it comfortably fits). No VPS, no Vercel Cron limits.
+# runs in under two minutes, so a full 24/7 cadence comfortably fits). No
+# VPS, no Vercel Cron limits.
 #
-# Runs Monday-Friday for sourcing/reporting (matches every other desk in the
-# firm), and every day for nothing here yet — add a followup/reply-check job
-# once the Graph mailbox is connected (see app/routers/oauth_ms.py).
+# Runs every hour, every day of the week — genuine 24/7 coverage, not tied
+# to any single region's business hours, since the point of the autonomous
+# loop is that it doesn't wait for anyone's morning. GitHub Actions cron is
+# UTC-only with no daylight-saving concept, which is exactly what "24/7
+# globally" wants: one clock, no timezone favoured over another.
 "on":
   schedule:
-    - cron: "0 8 * * 1-5"    # 08:00 UTC weekdays = 8am GMT, literally, year-round —
-                              # discover leads. Note this is 9am UK clock time while
-                              # the UK is on BST (late Mar-late Oct); GitHub Actions
-                              # cron is always UTC and has no daylight-saving concept.
-    - cron: "0 17 * * 1-5"   # 17:00 UTC weekdays — match investors + report
-  workflow_dispatch: {}       # manual "Run workflow" button in the Actions tab
+    - cron: "0 * * * *"    # every hour, on the hour, every day
+  workflow_dispatch: {}     # manual "Run workflow" button in the Actions tab
 
 jobs:
-  morning-sweep:
-    if: github.event.schedule == '0 8 * * 1-5' || github.event_name == 'workflow_dispatch'
+  hourly-cycle:
     runs-on: ubuntu-latest
     steps:
       - name: Discover leads (SEC EDGAR)
@@ -27,26 +25,25 @@ jobs:
           curl -sf -X POST "${{ secrets.APP_URL }}/cron/discover-leads" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120 | tee response.json
           python3 -c "import json,sys; sys.exit(0 if json.load(open('response.json')).get('ok') else 1)"
+
       - name: Draft outreach for eligible leads
         # Returns ok:false with CONNECTION REQUIRED until Graph + Anthropic
-        # are configured — that is expected, not a failure to alert on.
+        # are configured — expected, not a failure to alert on.
         run: |
           curl -s -X POST "${{ secrets.APP_URL }}/cron/draft-outreach" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
 
-  evening-sweep:
-    if: github.event.schedule == '0 17 * * 1-5' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
       - name: Check for replies
         run: |
           curl -s -X POST "${{ secrets.APP_URL }}/cron/check-replies" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 60
+
       - name: Match investors for active fundraising clients
         run: |
           curl -sf -X POST "${{ secrets.APP_URL }}/cron/match-investors" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
-      - name: Daily report
+
+      - name: Update the running report
         run: |
           curl -sf -X POST "${{ secrets.APP_URL }}/cron/report" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 60
