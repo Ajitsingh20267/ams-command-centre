@@ -47,14 +47,17 @@ integrations.** Below is the honest line.
 
 ### 1. Create a free Supabase project
 [supabase.com](https://supabase.com) → New project. Free tier: 500MB database, which is
-generous for this schema. Then, in the Supabase SQL Editor, run in order:
+generous for this schema. Copy four values from **Project Settings → API** and
+**→ Database**: `DATABASE_URL` (Connection string, URI, Session mode),
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`.
+
+Then, one command instead of copy-pasting two SQL files by hand:
+```bash
+export DATABASE_URL="<paste your connection string>"
+python3 scripts/bootstrap_db.py --investors "/path/to/ams-capital-partners.csv"
 ```
-db/migrations/001_init.sql
-db/seed_knowledge_base.sql
-```
-Copy four values from **Project Settings → API** and **→ Database**:
-`DATABASE_URL` (Connection string, URI, Session mode), `SUPABASE_URL`,
-`SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`.
+(the `--investors` flag is optional — omit it to skip importing the existing
+investor database, and run `scripts/import_investors.py` later instead).
 
 Create your own login: **Authentication → Users → Add user** (email + password)
 — this is the Managing Partner's account.

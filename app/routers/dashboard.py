@@ -18,10 +18,12 @@ DASHBOARD_HTML = """<!doctype html><html><head><meta charset="utf-8">
    --muted:#9a9a9a;--line:#2a2f38}}
  *{box-sizing:border-box}
  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,sans-serif}
- header{background:var(--navy);color:#fff;padding:18px 24px;display:flex;
-        justify-content:space-between;align-items:center}
- header h1{margin:0;font-size:17px}
- header a{color:#fff;opacity:.8;font-size:13px;text-decoration:none}
+ header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;
+        gap:24px;flex-wrap:wrap}
+ header h1{margin:0;font-size:16px;white-space:nowrap}
+ header nav a{color:#fff;opacity:.75;text-decoration:none;font-size:13px;margin-right:16px}
+ header nav a:hover{opacity:1}
+ header .signout{margin-left:auto;color:#fff;opacity:.7;font-size:13px;text-decoration:none}
  main{padding:20px;max-width:1100px;margin:0 auto}
  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;
        margin-bottom:24px}
@@ -43,7 +45,13 @@ DASHBOARD_HTML = """<!doctype html><html><head><meta charset="utf-8">
  button{background:var(--navy);color:#fff;border:none;border-radius:6px;padding:6px 12px;
         cursor:pointer;font-size:12px}
 </style></head><body>
-<header><h1>A.M.S. Command Centre</h1><a href="/logout">Sign out</a></header>
+<header><h1>A.M.S. Command Centre</h1>
+<nav>
+ <a href="/">Home</a><a href="/leads">Leads</a><a href="/investors">Investors</a>
+ <a href="/approvals">Approvals</a><a href="/clients">Clients</a>
+ <a href="/connect/microsoft">Connections</a>
+</nav>
+<a class="signout" href="/logout">Sign out</a></header>
 <main>
  <div class="grid" id="stats"></div>
  <section><h2>Needs your approval</h2><div class="scroll" id="approvals"></div></section>

@@ -21,9 +21,11 @@ from app.main import app  # noqa: E402  (startup event NOT triggered without `wi
 def test_app_imports_and_registers_routes():
     paths = {r.path for r in app.routes}
     for expected in ["/healthz", "/login", "/", "/api/leads", "/api/investors",
-                     "/api/approvals", "/connect/microsoft", "/cron/discover-leads",
+                     "/api/approvals", "/api/clients", "/api/clients/convert",
+                     "/connect/microsoft", "/cron/discover-leads",
                      "/cron/draft-outreach", "/cron/check-replies",
-                     "/cron/match-investors", "/cron/report"]:
+                     "/cron/match-investors", "/cron/report",
+                     "/leads", "/investors", "/approvals", "/clients"]:
         assert expected in paths, f"missing route: {expected}"
 
 
@@ -50,9 +52,17 @@ def test_home_redirects_to_login_without_session():
 
 def test_api_routes_401_without_session():
     client = TestClient(app)
-    for path in ["/api/leads", "/api/investors", "/api/approvals"]:
+    for path in ["/api/leads", "/api/investors", "/api/approvals", "/api/clients"]:
         r = client.get(path)
         assert r.status_code == 401, f"{path} should require auth"
+
+
+def test_html_pages_redirect_to_login_without_session():
+    client = TestClient(app, follow_redirects=False)
+    for path in ["/leads", "/investors", "/approvals", "/clients"]:
+        r = client.get(path)
+        assert r.status_code == 303, f"{path} should redirect"
+        assert r.headers["location"] == "/login"
 
 
 def test_cron_routes_require_secret():

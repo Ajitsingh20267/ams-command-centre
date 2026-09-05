@@ -13,7 +13,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from . import config, db
-from .routers import approvals, auth_routes, clients, cron, dashboard, investors, leads, oauth_ms
+from .routers import (approvals, auth_routes, clients, cron, dashboard, investors, leads,
+                       oauth_ms, pages)
 
 cfg = config.load()
 
@@ -45,4 +46,5 @@ app.include_router(investors.build_router(cfg))
 app.include_router(approvals.build_router(cfg))
 app.include_router(clients.build_router(cfg))
 app.include_router(oauth_ms.build_router(cfg))
+app.include_router(pages.build_router(cfg))
 app.include_router(cron.build_router(cfg))
