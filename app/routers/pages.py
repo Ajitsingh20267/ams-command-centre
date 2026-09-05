@@ -47,42 +47,113 @@ STYLE = """<style>
  form.inline{display:flex;gap:8px;align-items:center;background:var(--card);
         border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px}
  form.inline input{padding:6px 8px;border:1px solid var(--line);border-radius:6px}
+ .kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;align-items:flex-start}
+ .kcol{flex:0 0 220px;background:var(--card);border:1px solid var(--line);border-radius:8px;
+       display:flex;flex-direction:column;max-height:75vh}
+ .kcol-head{padding:10px 12px;border-bottom:1px solid var(--line);font-size:12px;
+       text-transform:uppercase;letter-spacing:.03em;color:var(--muted);display:flex;
+       justify-content:space-between}
+ .kcol-note{font-size:10px;color:var(--muted);padding:0 12px 8px;font-style:italic}
+ .kcol-body{padding:8px;overflow-y:auto;flex:1;min-height:60px}
+ .kcol-body.dragover{background:rgba(127,163,217,.15)}
+ .kcard{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;
+       margin-bottom:8px;font-size:12px;cursor:grab}
+ .kcard:active{cursor:grabbing}
+ .kcard .co{font-weight:600;margin-bottom:2px}
+ .kcard .meta{color:var(--muted);font-size:11px}
 </style>"""
-
-STAGE_OPTIONS = ["Lead", "Research", "Qualified", "Contacted", "Conversation", "Discovery",
-                  "Meeting", "Proposal", "Negotiation", "Human Approval", "Client", "Onboarding",
-                  "Fundraising", "Investor Matching", "Investor Outreach", "Investor Interest",
-                  "Due Diligence", "Term Sheet", "Commitment", "Funds Received", "Closed",
-                  "Nurture", "Declined"]
-
 
 def _page(title: str, body: str) -> str:
     return f"<!doctype html><html><head><meta charset='utf-8'>{STYLE}<title>{title}</title>" \
            f"</head><body>{NAV}<main>{body}</main></body></html>"
 
 
-LEADS_BODY = """<h2>Leads</h2><div class="scroll" id="leads"></div>
+LEADS_BODY = """<h2>Pipeline</h2>
+<p style="color:var(--muted);font-size:12px;margin-top:-8px">
+Drag a card to move it a stage. The Client column is drop-off only — converting
+a lead to a client goes through the approval gate on the Clients page, not a
+casual drag, since that step creates a real client record and onboarding
+checklist.</p>
+<div id="leads"><div class="empty">Loading…</div></div>
 <script>
-const stages = """ + str(STAGE_OPTIONS).replace("'", '"') + """;
-function opts(sel){return stages.map(s => '<option'+(s===sel?' selected':'')+'>'+s+'</option>').join('');}
-fetch('/api/leads').then(r=>r.json()).then(rows => {
+// Groups the schema's fine-grained `stage` values into columns a human can
+// actually scan. The underlying lead keeps its precise stage in the database
+// either way — this is a view, not a data model change.
+const COLUMNS = [
+  ["Sourced", ["Lead", "Research"]],
+  ["Qualified", ["Qualified"]],
+  ["Contacted", ["Contacted"]],
+  ["Conversation", ["Conversation", "Discovery", "Meeting"]],
+  ["Proposal", ["Proposal", "Negotiation", "Human Approval"]],
+  ["Client", ["Client", "Onboarding", "Fundraising", "Investor Matching",
+              "Investor Outreach", "Investor Interest", "Due Diligence",
+              "Term Sheet", "Commitment", "Funds Received", "Closed"]],
+  ["Nurture", ["Nurture"]],
+  ["Declined", ["Declined"]],
+];
+// Dropping a card into a column sets the lead's stage to this representative
+// value. "Client" has none on purpose — see the note above the board.
+const DROP_STAGE = {"Sourced": "Lead", "Qualified": "Qualified", "Contacted": "Contacted",
+  "Conversation": "Conversation", "Proposal": "Proposal", "Nurture": "Nurture",
+  "Declined": "Declined"};
+
+let LEADS = [];
+
+function render() {
+  const byCol = {};
+  for (const [name] of COLUMNS) byCol[name] = [];
+  for (const l of LEADS) {
+    const match = COLUMNS.find(([, stages]) => stages.includes(l.stage));
+    byCol[match ? match[0] : "Sourced"].push(l);
+  }
+  let html = '<div class="kanban">';
+  for (const [name] of COLUMNS) {
+    const rows = byCol[name];
+    const droppable = name in DROP_STAGE;
+    html += '<div class="kcol"><div class="kcol-head"><span>' + name + '</span><span>'
+          + rows.length + '</span></div>';
+    if (!droppable) html += '<div class="kcol-note">via Clients page</div>';
+    html += '<div class="kcol-body" data-col="' + name + '" ondragover="onDragOver(event)" '
+          + 'ondragleave="onDragLeave(event)" ondrop="onDrop(event)">';
+    for (const l of rows) {
+      html += '<div class="kcard" draggable="true" data-id="' + l.id + '" '
+            + 'ondragstart="onDragStart(event)"><div class="co">' + l.company_name + '</div>'
+            + '<div class="meta">' + (l.desk || '') + ' · score ' + (l.score || 0) + '</div></div>';
+    }
+    html += '</div></div>';
+  }
+  document.getElementById('leads').innerHTML = html + '</div>';
+}
+
+function onDragStart(e) { e.dataTransfer.setData('text/plain', e.currentTarget.dataset.id); }
+function onDragOver(e) {
+  if (e.currentTarget.dataset.col in DROP_STAGE) {
+    e.preventDefault();
+    e.currentTarget.classList.add('dragover');
+  }
+}
+function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+function onDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  const stage = DROP_STAGE[e.currentTarget.dataset.col];
+  if (!stage) return;
+  const id = e.dataTransfer.getData('text/plain');
+  fetch('/api/leads/' + id + '/stage', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({stage})}).then(() => {
+      const lead = LEADS.find(l => l.id === id);
+      if (lead) lead.stage = stage;
+      render();
+    });
+}
+
+fetch('/api/leads').then(r => r.json()).then(rows => {
+  LEADS = rows;
   if (!rows.length) { document.getElementById('leads').innerHTML =
     '<div class="empty">No leads yet — /cron/discover-leads has not run, or found nothing.</div>';
     return; }
-  let h = '<table><thead><tr><th>Company</th><th>Desk</th><th>Score</th><th>Band</th>'
-        + '<th>Signal</th><th>Stage</th><th></th></tr></thead><tbody>';
-  for (const l of rows) {
-    h += '<tr><td>'+l.company_name+'</td><td>'+(l.desk||'')+'</td><td>'+(l.score||0)+'</td>'
-       + '<td>'+(l.band||'')+'</td><td>'+(l.signal||'').slice(0,60)+'</td>'
-       + '<td><select onchange="setStage(\\''+l.id+'\\', this.value)">'+opts(l.stage)+'</select></td>'
-       + '<td><a href="'+(l.source_url||'#')+'" target="_blank">source</a></td></tr>';
-  }
-  document.getElementById('leads').innerHTML = h + '</tbody></table>';
+  render();
 });
-function setStage(id, stage) {
-  fetch('/api/leads/'+id+'/stage', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({stage})}).then(() => location.reload());
-}
 </script>"""
 
 INVESTORS_BODY = """<h2>Investor database</h2><div class="scroll" id="investors"></div>
