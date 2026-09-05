@@ -22,6 +22,7 @@ def test_app_imports_and_registers_routes():
     paths = {r.path for r in app.routes}
     for expected in ["/healthz", "/login", "/", "/api/leads", "/api/investors",
                      "/api/approvals", "/connect/microsoft", "/cron/discover-leads",
+                     "/cron/draft-outreach", "/cron/check-replies",
                      "/cron/match-investors", "/cron/report"]:
         assert expected in paths, f"missing route: {expected}"
 

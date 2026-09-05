@@ -51,6 +51,34 @@ class EdgarError(RuntimeError):
     pass
 
 
+def _score(desk: str, form: str, filed: str) -> tuple:
+    """0-100, built only from evidence actually on the filing — no invented
+    factors. Recency and form type are the only two things this feed knows
+    for certain; a richer score needs a human call or a second data source.
+    """
+    score = 50
+    notes = [f"base 50 for a matched {desk} trigger phrase"]
+    try:
+        days_old = (date.today() - date.fromisoformat(filed)).days
+        if days_old <= 30:
+            score += 20
+            notes.append(f"+20: filed {days_old}d ago, inside the 30-day recency window")
+    except (ValueError, TypeError):
+        notes.append("filing date unparseable — no recency bonus applied")
+    if form in ("10-K", "10-Q"):
+        score += 15
+        notes.append(f"+15: {form} is an ongoing SEC registrant — audited accounts, named "
+                       f"auditor, evidences 2 of the 4 fee-payer tests on its own")
+    if desk in ("REF-1", "DEB-1"):
+        score += 10
+        notes.append(f"+10: {desk} triggers carry a dated deadline, which is the desk's own "
+                       f"highest-value signal")
+    score = min(100, score)
+    band = ("Priority" if score >= 90 else "High" if score >= 75 else
+             "Medium" if score >= 60 else "Low" if score >= 40 else "Reject")
+    return score, band, "; ".join(notes)
+
+
 def _fetch(url: str) -> dict:
     r = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=30)
     if r.status_code == 403:
@@ -111,6 +139,7 @@ def run_sweep(conn, cfg, desk: str = "REF-1", days: int = 30, limit: int = 40) -
             adsh = (h.get("adsh") or "").replace("-", "")
             source_url = f"{EDGAR_ARCHIVE}/{cik}/{adsh}" if adsh else f"{EDGAR_ARCHIVE}/{cik}"
             signal = f"{h['form']} filed {h['filed']} contains {h['phrase']}."
+            score, band, score_reason = _score(desk, h["form"], h["filed"])
 
             with conn.cursor() as cur:
                 cur.execute(
@@ -126,10 +155,10 @@ def run_sweep(conn, cfg, desk: str = "REF-1", days: int = 30, limit: int = 40) -
 
                 cur.execute(
                     "insert into leads (company_id, desk, jurisdiction, signal, signal_date, "
-                    "source_url, band, confidence, stage, next_action) "
-                    "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "source_url, score, score_reason, band, confidence, stage, next_action) "
+                    "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (company_id, desk, "United States", signal, h["filed"], source_url,
-                     None, "VERIFIED", "Lead",
+                     score, score_reason, band, "VERIFIED", "Lead",
                      "Verify a named decision-maker and contact route before drafting"))
             inserted += 1
 

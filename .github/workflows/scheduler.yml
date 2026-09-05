@@ -15,27 +15,35 @@ on:
   workflow_dispatch: {}       # manual "Run workflow" button in the Actions tab
 
 jobs:
-  discover-leads:
+  morning-sweep:
     if: github.event.schedule == '0 7 * * 1-5' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Call /cron/discover-leads
+      - name: Discover leads (SEC EDGAR)
         run: |
           curl -sf -X POST "${{ secrets.APP_URL }}/cron/discover-leads" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
-            --max-time 120 | tee response.json
-      - name: Fail the job if the endpoint reported an error
-        run: python3 -c "import json,sys; d=json.load(open('response.json')); sys.exit(0 if d.get('ok') else 1)"
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120 | tee response.json
+          python3 -c "import json,sys; sys.exit(0 if json.load(open('response.json')).get('ok') else 1)"
+      - name: Draft outreach for eligible leads
+        # Returns ok:false with CONNECTION REQUIRED until Graph + Anthropic
+        # are configured — that is expected, not a failure to alert on.
+        run: |
+          curl -s -X POST "${{ secrets.APP_URL }}/cron/draft-outreach" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
 
-  match-investors-and-report:
+  evening-sweep:
     if: github.event.schedule == '0 17 * * 1-5' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Call /cron/match-investors
+      - name: Check for replies
+        run: |
+          curl -s -X POST "${{ secrets.APP_URL }}/cron/check-replies" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 60
+      - name: Match investors for active fundraising clients
         run: |
           curl -sf -X POST "${{ secrets.APP_URL }}/cron/match-investors" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
-      - name: Call /cron/report
+      - name: Daily report
         run: |
           curl -sf -X POST "${{ secrets.APP_URL }}/cron/report" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 60

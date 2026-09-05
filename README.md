@@ -27,7 +27,9 @@ integrations.** Below is the honest line.
 | Database schema (22 tables — leads, opportunities, clients, investors, investor_matches, emails, meetings, tasks, documents, approvals, audit_logs, etc.) | **Built and verified** — applied to a real local Postgres, not just reviewed by eye |
 | Auth (Supabase) | **Built** — login/session verification is real code against Supabase's own GoTrue API |
 | Dashboard | **Built** — every number is a live query; empty states say so rather than showing a placeholder number |
-| Lead generation (SEC EDGAR feed) | **Built and verified against the live SEC API** — this found real filings (including Teamshares Inc, already a real mandate case in the Sales Department pipeline) during testing, not fixture data |
+| Lead generation (SEC EDGAR feed) | **Built and verified against the live SEC API** — this found real filings (including Teamshares Inc, already a real mandate case in the Sales Department pipeline) during testing, not fixture data. Now also scores each lead (0-100, evidence-based: recency + form type + desk) |
+| Draft outreach (`/cron/draft-outreach`) | **Built and verified end-to-end** against a real Postgres with a mocked Graph/Claude call: drafts a touch-one email for a scored lead with a VERIFIED contact, creates the Outlook draft, advances the lead's stage — never sends |
+| Check replies (`/cron/check-replies`) | **Built and verified end-to-end**: classifies an inbound reply, matches it to a lead, advances the stage (INTERESTED) or suppresses (NO/REMOVE) or escalates to the approval queue (ANGRY/INVESTOR/UNCLASSIFIED) — never replies itself |
 | Investor matching engine | **Built and verified** — ran against the real 33-row investor CSV and produced a ranked, explainable shortlist |
 | Approval queue (GREEN/AMBER/RED) | **Built** |
 | Microsoft Graph draft-only client | **Built**, verified with a fake Graph client (unit-testable); **not verified against a real Azure tenant** — that needs your own app registration |

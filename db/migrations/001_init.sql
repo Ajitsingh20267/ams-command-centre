@@ -61,6 +61,7 @@ create table if not exists leads (
   funding_requirement_max numeric,
   instrument            text,
   score                 numeric default 0,
+  score_reason          text,               -- never a bare number with no explanation
   band                  text check (band in ('Priority', 'High', 'Medium', 'Low', 'Reject')),
   confidence            text check (confidence in ('VERIFIED', 'INFERRED', 'UNVERIFIED')),
   -- the client pipeline from the operating brief

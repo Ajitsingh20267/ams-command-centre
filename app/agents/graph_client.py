@@ -24,13 +24,20 @@ class GraphClient:
     def __init__(self, cfg, mailbox: str):
         self._cfg = cfg
         self._mailbox = mailbox
-        self._app = msal.ConfidentialClientApplication(
-            cfg.ms_client_id,
-            authority=f"https://login.microsoftonline.com/{cfg.ms_tenant_id}",
-            client_credential=cfg.ms_client_secret)
+        self._app = None   # built lazily — see _headers(). msal's constructor
+                            # itself makes a live network call to discover the
+                            # tenant's OIDC config, so building it eagerly here
+                            # would mean simply instantiating a GraphClient
+                            # (e.g. for an unrelated code path, or a test)
+                            # silently depends on Microsoft's servers.
         self._token = None
 
     def _headers(self) -> dict:
+        if self._app is None:
+            self._app = msal.ConfidentialClientApplication(
+                self._cfg.ms_client_id,
+                authority=f"https://login.microsoftonline.com/{self._cfg.ms_tenant_id}",
+                client_credential=self._cfg.ms_client_secret)
         if not self._token:
             result = self._app.acquire_token_for_client(scopes=SCOPE)
             if "access_token" not in result:
