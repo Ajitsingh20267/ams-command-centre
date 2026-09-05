@@ -43,7 +43,6 @@ class Config:
     ms_tenant_id: str = field(default_factory=lambda: _opt("MS_TENANT_ID"))
     ms_client_id: str = field(default_factory=lambda: _opt("MS_CLIENT_ID"))
     ms_client_secret: str = field(default_factory=lambda: _opt("MS_CLIENT_SECRET"))
-    ms_redirect_uri: str = field(default_factory=lambda: _opt("MS_REDIRECT_URI"))
     ms_mailbox: str = field(default_factory=lambda: _opt("MS_MAILBOX", "invest@amscapital.co.uk"))
 
     # A random 32+ byte string, used only to encrypt OAuth tokens at rest and
