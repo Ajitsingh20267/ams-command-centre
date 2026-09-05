@@ -1,0 +1,39 @@
+# Render.com "Blueprint" — connect the GitHub repo at render.com/deploy,
+# point it at this file, and Render creates the free web service below.
+# Free tier notes: the service sleeps after 15 minutes idle and takes ~30-60s
+# to wake on the next request; GitHub Actions' cron calls will wake it, so
+# the very first scheduled call after a sleep may need a longer timeout
+# (already set to 120s in scheduler.yml). No card required for the free tier
+# at the time this was written — verify current terms at render.com/pricing,
+# they change without much notice.
+services:
+  - type: web
+    name: ams-command-centre
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # paste your Supabase connection string in the Render dashboard
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: APP_SECRET
+        generateValue: true   # Render generates a random 32+ byte value for you
+      - key: CRON_SECRET
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
+      - key: MS_TENANT_ID
+        sync: false
+      - key: MS_CLIENT_ID
+        sync: false
+      - key: MS_CLIENT_SECRET
+        sync: false
+      - key: MS_MAILBOX
+        value: invest@amscapital.co.uk
