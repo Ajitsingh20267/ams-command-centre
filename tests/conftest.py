@@ -17,7 +17,6 @@ import pytest
 os.environ.setdefault("DATABASE_URL", "postgresql://placeholder")
 os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
 os.environ.setdefault("SUPABASE_ANON_KEY", "fake")
-os.environ.setdefault("SUPABASE_JWT_SECRET", "fake-jwt-secret-for-tests")
 os.environ.setdefault("APP_SECRET", "fake-app-secret-for-tests-32-bytes-ok")
 os.environ.setdefault("CRON_SECRET", "fake-cron-secret-for-tests")
 

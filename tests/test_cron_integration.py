@@ -16,13 +16,14 @@ import importlib
 import os
 from unittest import mock
 
-import jwt
 from fastapi.testclient import TestClient
 
 
 def _app_with_full_config(pg_uri):
+    # ENV=local so the session check accepts the /dev-login sentinel below
+    # instead of calling Supabase's real /auth/v1/user endpoint.
     os.environ.update({"MS_TENANT_ID": "t", "MS_CLIENT_ID": "c", "MS_CLIENT_SECRET": "s",
-                         "ANTHROPIC_API_KEY": "k"})
+                         "ANTHROPIC_API_KEY": "k", "ENV": "local"})
     import app.config
     import app.main
     importlib.reload(app.config)
@@ -33,10 +34,9 @@ def _app_with_full_config(pg_uri):
 
 
 def _session_client(main_module):
-    token = jwt.encode({"sub": "u", "email": "a@x.com", "aud": "authenticated"},
-                         main_module.cfg.supabase_jwt_secret, algorithm="HS256")
+    import app.security
     c = TestClient(main_module.app)
-    c.cookies.set("ams_session", token)
+    c.cookies.set("ams_session", app.security._DEV_SESSION_VALUE)
     return c
 
 
@@ -104,6 +104,7 @@ def test_draft_outreach_reports_connection_required_when_unconfigured(pg_conn, p
     # than silently doing nothing or crashing.
     for key in ("MS_TENANT_ID", "MS_CLIENT_ID", "MS_CLIENT_SECRET", "ANTHROPIC_API_KEY"):
         os.environ.pop(key, None)
+    os.environ["ENV"] = "local"
     import app.config
     import app.main
     importlib.reload(app.config)

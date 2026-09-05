@@ -47,9 +47,12 @@ integrations.** Below is the honest line.
 
 ### 1. Create a free Supabase project
 [supabase.com](https://supabase.com) → New project. Free tier: 500MB database, which is
-generous for this schema. Copy four values from **Project Settings → API** and
+generous for this schema. Copy three values from **Project Settings → API** and
 **→ Database**: `DATABASE_URL` (Connection string, URI, Session mode),
-`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`.
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`. No JWT secret is needed — newer Supabase
+projects don't expose one through the API at all, so session checks call
+Supabase's own `/auth/v1/user` endpoint directly instead of verifying a
+signature locally (see `app/security.py`).
 
 Then, one command instead of copy-pasting two SQL files by hand:
 ```bash

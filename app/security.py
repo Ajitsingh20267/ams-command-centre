@@ -3,8 +3,15 @@
 Login goes through Supabase's own GoTrue REST API rather than reimplementing
 password handling — Supabase already does the hashing, rate limiting and
 password-reset flow, and there is no reason to duplicate any of that here.
-This module only verifies the JWT Supabase hands back and carries it in an
-httpOnly cookie.
+
+Session verification calls Supabase's own /auth/v1/user endpoint rather than
+verifying the JWT locally. That was the original design, but newer Supabase
+projects (this one included) no longer expose a static JWT secret through
+any API — it's been deprecated in favour of rotating signing keys — so
+local verification isn't reliably possible any more. Asking Supabase itself
+is also strictly better: it respects token revocation (a locally-verified
+JWT stays "valid" by signature alone even after a user is banned or signs
+out everywhere), at the cost of one extra HTTP round trip per request.
 """
 from __future__ import annotations
 
@@ -13,11 +20,15 @@ import hashlib
 from typing import Optional
 
 import httpx
-import jwt
 from cryptography.fernet import Fernet
 from fastapi import Cookie, HTTPException
 
 SESSION_COOKIE = "ams_session"
+
+# The /dev-login route (ENV=local only, see auth_routes.py) sets exactly this
+# value rather than a real token, since there is no live Supabase session to
+# validate against on a local machine with no deployed project.
+_DEV_SESSION_VALUE = "local-dev-session-not-a-real-token"
 
 
 def login(cfg, email: str, password: str) -> dict:
@@ -32,15 +43,23 @@ def login(cfg, email: str, password: str) -> dict:
 
 
 def verify_session(cfg, token: Optional[str]) -> Optional[dict]:
-    """Returns the decoded claims if the cookie holds a valid, unexpired
-    Supabase-issued JWT. None otherwise — callers redirect to /login."""
+    """Returns the user's claims (dict with at least "email") if the cookie
+    holds a live, valid Supabase session. None otherwise — callers redirect
+    to /login. Never raises on a bad/expired token; that's just "not logged in".
+    """
     if not token:
         return None
+    if cfg.env == "local" and token == _DEV_SESSION_VALUE:
+        return {"sub": "dev-user", "email": "ajit@amscapital.co.uk"}
     try:
-        return jwt.decode(token, cfg.supabase_jwt_secret, algorithms=["HS256"],
-                            audience="authenticated")
-    except jwt.PyJWTError:
+        r = httpx.get(f"{cfg.supabase_url}/auth/v1/user",
+                       headers={"apikey": cfg.supabase_anon_key,
+                                 "Authorization": f"Bearer {token}"}, timeout=10)
+    except httpx.HTTPError:
         return None
+    if r.status_code != 200:
+        return None
+    return r.json()
 
 
 def require_session(cfg):

@@ -2,7 +2,6 @@
 Auth (see security.login) — this module never sees or stores a password."""
 from __future__ import annotations
 
-import jwt
 from fastapi import APIRouter, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -58,12 +57,10 @@ def build_router(cfg) -> APIRouter:
         # there is no code path in production that can reach this.
         @router.get("/dev-login")
         def dev_login():
-            token = jwt.encode(
-                {"sub": "dev-user", "email": "ajit@amscapital.co.uk", "aud": "authenticated"},
-                cfg.supabase_jwt_secret, algorithm="HS256")
             resp = RedirectResponse(url="/", status_code=303)
-            resp.set_cookie(security.SESSION_COOKIE, token, httponly=True, samesite="lax",
-                              secure=cfg.cookie_secure, max_age=60 * 60 * 8)
+            resp.set_cookie(security.SESSION_COOKIE, security._DEV_SESSION_VALUE,
+                              httponly=True, samesite="lax", secure=cfg.cookie_secure,
+                              max_age=60 * 60 * 8)
             return resp
 
     @router.get("/logout")

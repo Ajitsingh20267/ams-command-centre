@@ -17,7 +17,7 @@ I'll issue a fresh one.)*
 
 ## ☐ 2. Supabase — 3 minutes
 1. [supabase.com](https://supabase.com) → sign up (free, GitHub login works) → **New project**
-2. **Project Settings → API**: copy `Project URL`, `anon public` key, and (under **JWT Settings**) the `JWT Secret`
+2. **Project Settings → API**: copy `Project URL` and the `anon public` key (no JWT secret needed — session checks call Supabase directly)
 3. **Project Settings → Database**: copy the **Connection string** (URI, Session mode) — this is `DATABASE_URL`
 4. Run the one-command setup:
    ```bash

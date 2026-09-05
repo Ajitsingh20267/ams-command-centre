@@ -31,10 +31,12 @@ class Config:
     # Supabase Postgres — free tier. Project Settings -> Database -> Connection string.
     database_url: str = field(default_factory=lambda: _req("DATABASE_URL"))
 
-    # Supabase Auth — Project Settings -> API.
+    # Supabase Auth — Project Settings -> API. No JWT secret is needed: newer
+    # Supabase projects don't expose one at all (rotating signing keys
+    # instead), so session verification calls Supabase's own /auth/v1/user
+    # endpoint rather than checking a signature locally — see app/security.py.
     supabase_url: str = field(default_factory=lambda: _req("SUPABASE_URL"))
     supabase_anon_key: str = field(default_factory=lambda: _req("SUPABASE_ANON_KEY"))
-    supabase_jwt_secret: str = field(default_factory=lambda: _req("SUPABASE_JWT_SECRET"))
 
     anthropic_key: str = field(default_factory=lambda: _opt("ANTHROPIC_API_KEY"))
     anthropic_model: str = field(default_factory=lambda: _opt("ANTHROPIC_MODEL", "claude-sonnet-5"))

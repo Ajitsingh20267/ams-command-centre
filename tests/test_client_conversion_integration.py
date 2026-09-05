@@ -9,23 +9,27 @@ here would silently reuse that stale, module-cached config instead of
 pointing at this test's real embedded Postgres.
 """
 import importlib
+import os
 
-import jwt
 from fastapi.testclient import TestClient
 
 
 def _client(pg_uri):
+    # ENV=local so the session check accepts the /dev-login sentinel below
+    # instead of calling Supabase's real /auth/v1/user endpoint — this suite
+    # is proving the approval-gate logic, not the auth flow itself (that's
+    # covered separately in test_dev_login.py and security.login's own call).
+    os.environ["ENV"] = "local"
     import app.config
     import app.main
+    import app.security
     importlib.reload(app.config)
     importlib.reload(app.main)
     cfg = app.main.cfg
     assert cfg.database_url == pg_uri, "app.main did not pick up the real test database"
 
-    token = jwt.encode({"sub": "u", "email": "ajit@amscapital.co.uk", "aud": "authenticated"},
-                         cfg.supabase_jwt_secret, algorithm="HS256")
     c = TestClient(app.main.app)
-    c.cookies.set("ams_session", token)
+    c.cookies.set("ams_session", app.security._DEV_SESSION_VALUE)
     return c, cfg
 
 

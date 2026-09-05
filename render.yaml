@@ -19,8 +19,6 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
       - key: APP_SECRET
         generateValue: true   # Render generates a random 32+ byte value for you
       - key: CRON_SECRET

@@ -9,7 +9,6 @@ import os
 os.environ.setdefault("DATABASE_URL", "postgresql://user:pass@localhost:5432/fake")
 os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
 os.environ.setdefault("SUPABASE_ANON_KEY", "fake-anon-key")
-os.environ.setdefault("SUPABASE_JWT_SECRET", "fake-jwt-secret-for-import-only")
 os.environ.setdefault("APP_SECRET", "fake-app-secret-for-import-only-32-bytes")
 os.environ.setdefault("CRON_SECRET", "fake-cron-secret")
 
