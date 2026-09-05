@@ -31,7 +31,8 @@ integrations.** Below is the honest line.
 | Draft outreach (`/cron/draft-outreach`) | **Built and verified end-to-end** against a real Postgres with a mocked Graph/Claude call: drafts a touch-one email for a scored lead with a VERIFIED contact, creates the Outlook draft, advances the lead's stage — never sends |
 | Check replies (`/cron/check-replies`) | **Built and verified end-to-end**: classifies an inbound reply, matches it to a lead, advances the stage (INTERESTED) or suppresses (NO/REMOVE) or escalates to the approval queue (ANGRY/INVESTOR/UNCLASSIFIED) — never replies itself |
 | Investor matching engine | **Built and verified** — ran against the real 33-row investor CSV and produced a ranked, explainable shortlist |
-| Approval queue (GREEN/AMBER/RED) | **Built** |
+| Approval queue (GREEN/AMBER/RED) | **Built and verified as an actual gate** — `/api/clients/convert` is hard-blocked (403) without an *approved* RED-level row for that specific opportunity; a merely-*requested* (pending) approval still blocks it. Proven against a real Postgres, including the decision flow |
+| Client conversion + onboarding checklist | **Built and verified** — converting an approved opportunity creates the client and auto-generates the real 10-item checklist (5 documents from CLAUDE.md + 5 standard KYC items) |
 | Microsoft Graph draft-only client | **Built**, verified with a fake Graph client (unit-testable); **not verified against a real Azure tenant** — that needs your own app registration |
 | Anthropic drafting/classification | **Built**, reads the `knowledge_base` table so it never invents a fact — **not verified against a live API key** in this session |
 | GitHub Actions scheduler | **Built** — calls the deployed app's `/cron/*` endpoints on a schedule; needs `APP_URL` and `CRON_SECRET` set as repo secrets once deployed |

@@ -13,6 +13,13 @@ class Decision(BaseModel):
     decision: str  # "approved" | "rejected"
 
 
+class ApprovalRequest(BaseModel):
+    level: str  # GREEN | AMBER | RED
+    entity_type: str
+    entity_id: str
+    description: str
+
+
 def build_router(cfg) -> APIRouter:
     router = APIRouter()
     require_api = security.require_session(cfg)
@@ -27,6 +34,19 @@ def build_router(cfg) -> APIRouter:
                     "order by case level when 'RED' then 0 when 'AMBER' then 1 else 2 end, "
                     "created_at desc", (status,))
                 return cur.fetchall()
+        finally:
+            conn.close()
+
+    @router.post("/api/approvals")
+    def create_approval(body: ApprovalRequest, claims=Depends(require_api)):
+        if body.level not in ("GREEN", "AMBER", "RED"):
+            raise HTTPException(status_code=400, detail="level must be GREEN, AMBER or RED")
+        conn = db.connect(cfg.database_url)
+        try:
+            approval_id = db.request_approval(conn, body.level, body.entity_type,
+                                                 body.entity_id, body.description,
+                                                 requested_by=claims.get("email", "human"))
+            return {"ok": True, "approval_id": approval_id}
         finally:
             conn.close()
 
