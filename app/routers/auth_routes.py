@@ -46,7 +46,8 @@ def build_router(cfg) -> APIRouter:
                                       status_code=303)
         resp = RedirectResponse(url="/", status_code=303)
         resp.set_cookie(security.SESSION_COOKIE, tokens["access_token"],
-                          httponly=True, samesite="lax", secure=True, max_age=60 * 60 * 8)
+                          httponly=True, samesite="lax", secure=cfg.cookie_secure,
+                          max_age=60 * 60 * 8)
         return resp
 
     @router.get("/logout")

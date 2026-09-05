@@ -124,7 +124,7 @@ externally until you, personally, open a draft and press send.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # fill in your Supabase project's values
+cp .env.example .env   # fill in your Supabase project's values, and set ENV=local
 uvicorn app.main:app --reload --port 8080
 ```
 

@@ -57,6 +57,16 @@ class Config:
 
     port: int = field(default_factory=lambda: int(_opt("PORT", "8080") or "8080"))
 
+    # "local" relaxes the session cookie's Secure flag so login works over
+    # plain http://localhost during development. Every real deployment
+    # (Render, Fly, anywhere with a real domain) serves https and must NOT
+    # set this — a Secure-less cookie sent over http is interceptable.
+    env: str = field(default_factory=lambda: _opt("ENV", "production"))
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.env != "local"
+
     # There is no environment variable that turns sending on, on purpose —
     # see app/agents/graph_client.py, which has no send function to enable.
     SENDING_ENABLED: bool = False

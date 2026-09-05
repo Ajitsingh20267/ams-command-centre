@@ -65,6 +65,13 @@ def test_html_pages_redirect_to_login_without_session():
         assert r.headers["location"] == "/login"
 
 
+def test_session_cookie_is_secure_by_default():
+    # Production default (ENV unset -> "production") must set Secure, or the
+    # session cookie could be sent over plain http and intercepted.
+    from app.main import cfg
+    assert cfg.cookie_secure is True
+
+
 def test_cron_routes_require_secret():
     client = TestClient(app)
     r = client.post("/cron/report")

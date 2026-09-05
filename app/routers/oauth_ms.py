@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
 
 from .. import db, security
-from ..agents.graph_client import GraphClient, GraphError
+from ..agents.graph_client import GraphClient
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <title>Connect Microsoft 365</title>
@@ -92,7 +92,13 @@ def build_router(cfg) -> APIRouter:
                 db.audit(conn, claims.get("email", "human"), "connection_test_ok",
                           "oauth_connections", None, {"provider": "microsoft"})
                 return {"connected": True, "mailbox": cfg.ms_mailbox}
-            except GraphError as e:
+            except Exception as e:
+                # Broad on purpose: a bad tenant/client ID raises a raw msal
+                # ValueError (real network validation against Microsoft, not
+                # our own code), a network blip raises httpx's own error
+                # types, and neither should crash this diagnostic endpoint —
+                # the entire point of "test" is to fail gracefully and say
+                # why, not 500.
                 with conn.cursor() as cur:
                     cur.execute(
                         "insert into oauth_connections (provider, mailbox, status, last_error) "
