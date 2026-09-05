@@ -120,7 +120,7 @@ def search(desk: str, days: int, limit: int) -> list:
 
 def run_sweep(conn, cfg, desk: str = "REF-1", days: int = 30, limit: int = 40) -> str:
     """Fetches, filters, and inserts new leads. Returns a one-line summary.
-    Every insert is deduplicated on (company name, jurisdiction) at the DB
+    Every insert is deduplicated on (company name, country) at the DB
     level (companies.unique constraint), so re-running this is always safe.
     """
     run_id = db.start_run(conn, f"lead_generation:{desk}")
@@ -154,7 +154,7 @@ def run_sweep(conn, cfg, desk: str = "REF-1", days: int = 30, limit: int = 40) -
                 company_id = row["id"]
 
                 cur.execute(
-                    "insert into leads (company_id, desk, jurisdiction, signal, signal_date, "
+                    "insert into leads (company_id, desk, geography, signal, signal_date, "
                     "source_url, score, score_reason, band, confidence, stage, next_action) "
                     "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (company_id, desk, "United States", signal, h["filed"], source_url,

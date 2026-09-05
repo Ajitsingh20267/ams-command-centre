@@ -130,17 +130,21 @@ uvicorn app.main:app --reload --port 8080
 
 ## Tests
 ```bash
+pip install -r requirements-dev.txt   # adds pgserver, for the real-Postgres tests below
 python3 -m pytest tests/ -v
 ```
-13 tests, all passing without any external service — they cover the scoring
-algorithm, the lead-filtering logic, and that the app's routes exist, gate
-correctly on session/cron-secret, and render without a database for the
-routes that don't need one. Routes that do need a database (dashboard state,
-leads, approvals, investor matching end-to-end) were verified in this build
-against a real, temporary, local Postgres instance (via the `pgserver`
-package) — not against Supabase itself, since that needs your own account —
-and that run is not part of the checked-in suite, since it needs a component
-(`pgserver`) that exists only for this kind of manual verification.
+23 tests. Most need no external service — they cover the scoring algorithm,
+the lead-filtering logic, and that the app's routes exist and gate correctly
+on session/cron-secret without a database. A second group (`*_integration.py`)
+runs against a real, temporary, embedded Postgres (via `pgserver` — pure pip,
+no system install, no Docker) with the actual schema applied: the RED-approval
+gate on client conversion, the full draft-outreach → reply → stage-advance
+loop, and the SEC EDGAR write path. That last one exists because a wrong
+column name (`jurisdiction` vs. the schema's `geography`) shipped past the
+first version of this test suite — caught only once the agent was actually
+run against a real database rather than unit-tested in isolation — so it's
+now a permanent regression test, not a one-off manual check. CI installs
+`requirements-dev.txt` and runs the full set on every push.
 
 ## Architecture
 ```
