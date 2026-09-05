@@ -10,13 +10,16 @@ name: A.M.S. autonomous scheduler
 # once the Graph mailbox is connected (see app/routers/oauth_ms.py).
 "on":
   schedule:
-    - cron: "0 7 * * 1-5"    # 07:00 UTC weekdays — discover leads
+    - cron: "0 8 * * 1-5"    # 08:00 UTC weekdays = 8am GMT, literally, year-round —
+                              # discover leads. Note this is 9am UK clock time while
+                              # the UK is on BST (late Mar-late Oct); GitHub Actions
+                              # cron is always UTC and has no daylight-saving concept.
     - cron: "0 17 * * 1-5"   # 17:00 UTC weekdays — match investors + report
   workflow_dispatch: {}       # manual "Run workflow" button in the Actions tab
 
 jobs:
   morning-sweep:
-    if: github.event.schedule == '0 7 * * 1-5' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '0 8 * * 1-5' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Discover leads (SEC EDGAR)
