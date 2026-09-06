@@ -38,11 +38,31 @@ from .. import db
 
 API = "https://api.company-information.service.gov.uk"
 
-# SIC codes for the sectors A.M.S. actually advises — filters out the long
-# tail of dormant holding companies and unrelated trades that would
-# otherwise dominate a broad search.
-SIC_PREFIXES = ["411", "412", "421", "422", "429", "431", "432", "433", "439",
-                 "351", "352", "353", "620", "631", "473", "561"]
+# Real, full 5-digit UK SIC 2007 codes for the sectors A.M.S. actually
+# advises — filters out the long tail of dormant holding companies and
+# unrelated trades that would otherwise dominate a broad search.
+#
+# These must be exact 5-digit codes, not prefixes: the advanced-search API's
+# sic_codes filter matches on the literal code, unlike the reference
+# implementation's local prefix-matching against an already-fetched
+# company's own sic_codes list. Verified live against the real API on
+# 2026-09-06 — a 3-digit value (e.g. "412") returns 404, not zero results.
+SIC_CODES = [
+    "41100",   # development of building projects
+    "41201",   # construction of commercial buildings
+    "41202",   # construction of domestic buildings
+    "68100",   # buying and selling of own real estate
+    "68209",   # other letting and operating of own or leased real estate
+    "68320",   # management of real estate on a fee or contract basis
+    "35110",   # production of electricity
+    "35300",   # steam and air conditioning supply
+    "42110",   # construction of roads and motorways
+    "42910",   # construction of water projects
+    "62012",   # business and domestic software development
+    "62020",   # information technology consultancy activities
+    "56101",   # licensed restaurants
+    "47190",   # other retail sale in non-specialised stores
+]
 
 DESK_FORMS_NOTE = {"DEB-1": "outstanding charge", "REF-1": "outstanding charge, dated",
                      "MNA-1": "succession-shaped (age + small board)", "RDY-1": "accounts overdue"}
@@ -79,7 +99,7 @@ def discover_candidates(cfg, size: int = 40) -> list:
     there is nothing to evidence against the fee-payer gate)."""
     cutoff = (date.today() - timedelta(days=365)).isoformat()
     seen, out = set(), []
-    for sic in SIC_PREFIXES:
+    for sic in SIC_CODES:
         data = _get(cfg, "/advanced-search/companies", {
             "sic_codes": sic, "company_status": "active",
             "incorporated_to": cutoff, "size": min(size, 20),
