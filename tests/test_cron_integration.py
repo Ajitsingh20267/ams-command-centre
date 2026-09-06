@@ -99,11 +99,15 @@ def test_draft_outreach_and_check_replies_end_to_end(pg_conn, pg_uri):
 
 
 def test_draft_outreach_reports_connection_required_when_unconfigured(pg_conn, pg_uri):
-    # A fresh reload with the MS_*/ANTHROPIC_API_KEY env vars unset (as they
-    # are by default in this test process) must report the real gap rather
-    # than silently doing nothing or crashing.
+    # Set (not remove) empty values: config.py's module-level load_dotenv()
+    # runs again on reload and does NOT override a key that already exists
+    # in os.environ, even an empty one — but it WILL repopulate a key that
+    # was removed, from a real local .env file (e.g. one holding this
+    # machine's actual Outlook credentials from a real deployment session).
+    # Emptying rather than popping keeps this test correct regardless of
+    # what .env happens to contain on whichever machine runs it.
     for key in ("MS_TENANT_ID", "MS_CLIENT_ID", "MS_CLIENT_SECRET", "ANTHROPIC_API_KEY"):
-        os.environ.pop(key, None)
+        os.environ[key] = ""
     os.environ["ENV"] = "local"
     import app.config
     import app.main

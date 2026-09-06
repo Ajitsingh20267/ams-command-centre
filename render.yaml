@@ -35,3 +35,5 @@ services:
         sync: false
       - key: MS_MAILBOX
         value: invest@amscapital.co.uk
+      - key: COMPANIES_HOUSE_KEY
+        sync: false

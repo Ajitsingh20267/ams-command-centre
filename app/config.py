@@ -41,6 +41,11 @@ class Config:
     anthropic_key: str = field(default_factory=lambda: _opt("ANTHROPIC_API_KEY"))
     anthropic_model: str = field(default_factory=lambda: _opt("ANTHROPIC_MODEL", "claude-sonnet-5"))
 
+    # Companies House (UK) — free, no cost ever, just a REST key. Optional:
+    # the UK lead-discovery agent reports CONNECTION REQUIRED without it,
+    # same pattern as every other optional integration.
+    companies_house_key: str = field(default_factory=lambda: _opt("COMPANIES_HOUSE_KEY"))
+
     # Microsoft Graph — optional until the Managing Partner connects a mailbox.
     ms_tenant_id: str = field(default_factory=lambda: _opt("MS_TENANT_ID"))
     ms_client_id: str = field(default_factory=lambda: _opt("MS_CLIENT_ID"))
@@ -79,6 +84,10 @@ class Config:
     @property
     def anthropic_configured(self) -> bool:
         return bool(self.anthropic_key)
+
+    @property
+    def companies_house_configured(self) -> bool:
+        return bool(self.companies_house_key)
 
 
 def load() -> Config:

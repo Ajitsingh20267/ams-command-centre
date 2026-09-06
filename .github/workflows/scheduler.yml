@@ -20,11 +20,18 @@ jobs:
   hourly-cycle:
     runs-on: ubuntu-latest
     steps:
-      - name: Discover leads (SEC EDGAR)
+      - name: Discover leads (SEC EDGAR — US public companies)
         run: |
           curl -sf -X POST "${{ secrets.APP_URL }}/cron/discover-leads" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120 | tee response.json
           python3 -c "import json,sys; sys.exit(0 if json.load(open('response.json')).get('ok') else 1)"
+
+      - name: Discover leads (Companies House — UK private companies)
+        # Returns ok:false with CONNECTION REQUIRED until COMPANIES_HOUSE_KEY
+        # is set — expected, not a failure to alert on.
+        run: |
+          curl -s -X POST "${{ secrets.APP_URL }}/cron/discover-leads-uk" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
 
       - name: Draft outreach for eligible leads
         # Returns ok:false with CONNECTION REQUIRED until Graph + Anthropic
