@@ -382,3 +382,14 @@ create table if not exists audit_logs (
   detail        jsonb
 );
 create index if not exists idx_audit_at on audit_logs(at desc);
+
+-- Small persisted key-value state for agents that need to remember a cursor
+-- between runs — e.g. the Companies House agent's per-SIC-code pagination
+-- offset, so an hourly run explores fresh territory instead of re-fetching
+-- the same page of results forever. Not a general-purpose table: only for
+-- this kind of small, agent-owned progress marker.
+create table if not exists agent_cursors (
+  key         text primary key,
+  value       text not null,
+  updated_at  timestamptz not null default now()
+);

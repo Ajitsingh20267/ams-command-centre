@@ -59,7 +59,7 @@ def test_run_sweep_inserts_the_real_gated_lead(pg_conn):
 
     with mock.patch.object(ch, "_get", side_effect=fake_get), \
          mock.patch.object(ch.time, "sleep"):
-        summary = ch.run_sweep(pg_conn, cfg, limit=10)
+        summary = ch.run_sweep(pg_conn, cfg)
 
     assert "1 inserted" in summary
     assert "rejected (distress/insolvency)" in summary
@@ -89,8 +89,8 @@ def test_run_sweep_is_idempotent(pg_conn):
 
     with mock.patch.object(ch, "_get", side_effect=fake_get), \
          mock.patch.object(ch.time, "sleep"):
-        ch.run_sweep(pg_conn, cfg, limit=10)
-        s2 = ch.run_sweep(pg_conn, cfg, limit=10)
+        ch.run_sweep(pg_conn, cfg)
+        s2 = ch.run_sweep(pg_conn, cfg)
 
     assert "already on file" in s2
     with pg_conn.cursor() as cur:

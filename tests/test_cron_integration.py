@@ -97,6 +97,24 @@ def test_draft_outreach_and_check_replies_end_to_end(pg_conn, pg_uri):
                      "and related_lead_id=%s", (lead_id,))
         assert cur.fetchone()["classification"] == "INTERESTED"
 
+    # The dashboard's two real read paths for this activity: /api/leads must
+    # show the draft count and last reply on the lead itself (what the
+    # Kanban card pills render), and /api/activity must list both the draft
+    # and the reply as real, timestamped events — this is exactly the "what
+    # drafts have been made, who's replied" view, proven against real rows,
+    # not just that the underlying tables have the right data in them.
+    r = client.get("/api/leads")
+    assert r.status_code == 200
+    lead_row = next(l for l in r.json() if l["id"] == lead_id)
+    assert lead_row["drafts_count"] == 1
+    assert lead_row["last_reply"] == "INTERESTED"
+
+    r = client.get("/api/activity")
+    assert r.status_code == 200
+    activity = r.json()
+    directions = {a["direction"] for a in activity if a["lead_id"] == lead_id}
+    assert directions == {"outbound_draft", "inbound"}
+
 
 def test_draft_outreach_reports_connection_required_when_unconfigured(pg_conn, pg_uri):
     # Set (not remove) empty values: config.py's module-level load_dotenv()

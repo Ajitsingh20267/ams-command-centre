@@ -11,8 +11,8 @@ from .. import security
 
 NAV = """<header><h1>A.M.S. Command Centre</h1>
 <nav>
- <a href="/">Home</a><a href="/leads">Leads</a><a href="/investors">Investors</a>
- <a href="/approvals">Approvals</a><a href="/clients">Clients</a>
+ <a href="/">Home</a><a href="/leads">Leads</a><a href="/activity">Activity</a>
+ <a href="/investors">Investors</a><a href="/approvals">Approvals</a><a href="/clients">Clients</a>
  <a href="/connect/microsoft">Connections</a>
 </nav>
 <a class="signout" href="/logout">Sign out</a></header>"""
@@ -61,6 +61,13 @@ STYLE = """<style>
  .kcard:active{cursor:grabbing}
  .kcard .co{font-weight:600;margin-bottom:2px}
  .kcard .meta{color:var(--muted);font-size:11px}
+ .kcard .status{margin-top:4px;display:flex;gap:4px;flex-wrap:wrap}
+ .pill{font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap}
+ .pill.draft{background:#dce8f5;color:#1a4d7a}
+ .pill.reply-interested{background:#c9e8d1;color:#1a5c33}
+ .pill.reply-other{background:#e8e0c9;color:#6b5d1a}
+ .pill.reply-urgent{background:#f3c9c9;color:#8a1515}
+ .pill.none{background:transparent;color:var(--muted);font-style:italic}
 </style>"""
 
 def _page(title: str, body: str) -> str:
@@ -99,6 +106,25 @@ const DROP_STAGE = {"Sourced": "Lead", "Qualified": "Qualified", "Contacted": "C
 
 let LEADS = [];
 
+// Real, drafted-then-observed status only — never invents a "sent" or
+// "contacted" state the system doesn't actually know about. A draft
+// existing means exactly that: a draft exists in Outlook, waiting on you.
+function statusPills(l) {
+  const pills = [];
+  if (l.drafts_count > 0) {
+    pills.push('<span class="pill draft">' + l.drafts_count + ' draft'
+              + (l.drafts_count > 1 ? 's' : '') + '</span>');
+  }
+  if (l.last_reply) {
+    const cls = l.last_reply === 'INTERESTED' ? 'reply-interested'
+              : (l.last_reply === 'ANGRY' || l.last_reply === 'INVESTOR'
+                 || l.last_reply === 'UNCLASSIFIED') ? 'reply-urgent' : 'reply-other';
+    pills.push('<span class="pill ' + cls + '">replied: ' + l.last_reply + '</span>');
+  }
+  if (!pills.length) pills.push('<span class="pill none">no contact yet</span>');
+  return pills.join('');
+}
+
 function render() {
   const byCol = {};
   for (const [name] of COLUMNS) byCol[name] = [];
@@ -118,7 +144,8 @@ function render() {
     for (const l of rows) {
       html += '<div class="kcard" draggable="true" data-id="' + l.id + '" '
             + 'ondragstart="onDragStart(event)"><div class="co">' + l.company_name + '</div>'
-            + '<div class="meta">' + (l.desk || '') + ' · score ' + (l.score || 0) + '</div></div>';
+            + '<div class="meta">' + (l.desk || '') + ' · score ' + (l.score || 0) + '</div>'
+            + '<div class="status">' + statusPills(l) + '</div></div>';
     }
     html += '</div></div>';
   }
@@ -236,6 +263,32 @@ function convert(e) {
 }
 </script>"""
 
+ACTIVITY_BODY = """<h2>Activity — every email this system has drafted or observed</h2>
+<p style="color:var(--muted);font-size:12px;margin-top:-8px">
+Drafts sit in Outlook until you send them — nothing here has gone out on its own.
+Replies are read-only observations, classified but never auto-answered.</p>
+<div class="scroll" id="activity"></div>
+<script>
+fetch('/api/activity').then(r => r.json()).then(rows => {
+  if (!rows.length) { document.getElementById('activity').innerHTML =
+    '<div class="empty">Nothing yet — connect Outlook and Anthropic, then run '
+    + '/cron/draft-outreach, to see drafts appear here.</div>';
+    return; }
+  let h = '<table><thead><tr><th>When</th><th>Company</th><th>Direction</th>'
+        + '<th>Subject</th><th>Status / classification</th><th></th></tr></thead><tbody>';
+  for (const a of rows) {
+    const statusText = a.direction === 'inbound' ? (a.classification || 'unclassified')
+                                                    : a.status;
+    h += '<tr><td>' + a.created_at + '</td><td>' + (a.company_name || '(unmatched)') + '</td>'
+       + '<td>' + (a.direction === 'inbound' ? 'Reply received' : 'Draft created') + '</td>'
+       + '<td>' + (a.subject || '') + '</td><td>' + statusText + '</td>'
+       + '<td>' + (a.web_link ? '<a href="' + a.web_link + '" target="_blank">open</a>' : '')
+       + '</td></tr>';
+  }
+  document.getElementById('activity').innerHTML = h + '</tbody></table>';
+});
+</script>"""
+
 
 def build_router(cfg) -> APIRouter:
     router = APIRouter()
@@ -249,6 +302,7 @@ def build_router(cfg) -> APIRouter:
         return _route
 
     router.get("/leads", response_class=HTMLResponse)(_guarded("Leads", LEADS_BODY))
+    router.get("/activity", response_class=HTMLResponse)(_guarded("Activity", ACTIVITY_BODY))
     router.get("/investors", response_class=HTMLResponse)(_guarded("Investors", INVESTORS_BODY))
     router.get("/approvals", response_class=HTMLResponse)(_guarded("Approvals", APPROVALS_BODY))
     router.get("/clients", response_class=HTMLResponse)(_guarded("Clients", CLIENTS_BODY))

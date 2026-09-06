@@ -85,6 +85,29 @@ def finish_run(conn, run_id, ok: bool, summary: str = "", error: str = ""):
             (ok, summary, error or None, run_id))
 
 
+def get_cursor(conn, key: str, default: int = 0) -> int:
+    """Small persisted progress marker (see agent_cursors in the schema) —
+    e.g. how far a paginated discovery agent has gotten for one search
+    term, so the next run continues from there instead of repeating."""
+    with conn.cursor() as cur:
+        cur.execute("select value from agent_cursors where key=%s", (key,))
+        row = cur.fetchone()
+    if row is None:
+        return default
+    try:
+        return int(row["value"])
+    except ValueError:
+        return default
+
+
+def set_cursor(conn, key: str, value: int):
+    with conn.cursor() as cur:
+        cur.execute(
+            "insert into agent_cursors (key, value, updated_at) values (%s,%s,now()) "
+            "on conflict (key) do update set value=excluded.value, updated_at=now()",
+            (key, str(value)))
+
+
 def request_approval(conn, level: str, entity_type: str, entity_id, description: str,
                        requested_by: str = "system") -> str:
     """The GREEN/AMBER/RED gate. GREEN rows are logged for visibility but do
