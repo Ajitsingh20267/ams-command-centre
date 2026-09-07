@@ -11,7 +11,8 @@ from .. import security
 
 NAV = """<header><h1>A.M.S. Command Centre</h1>
 <nav>
- <a href="/">Home</a><a href="/leads">Leads</a><a href="/activity">Activity</a>
+ <a href="/">Home</a><a href="/leads">Leads</a><a href="/sole-traders">Sole traders</a>
+ <a href="/activity">Activity</a>
  <a href="/investors">Investors</a><a href="/approvals">Approvals</a><a href="/clients">Clients</a>
  <a href="/connect/microsoft">Connections</a>
 </nav>
@@ -290,6 +291,57 @@ fetch('/api/activity').then(r => r.json()).then(rows => {
 </script>"""
 
 
+SOLE_TRADERS_BODY = """<h2>Sole traders — unscored reach list</h2>
+<p style="color:var(--muted);font-size:12px;margin-top:-8px">
+These never appear on Companies House (it's a companies-only register), so there's
+no filed-accounts, officers, or charges data to score them against — this list is
+deliberately unscored. Sourced free from the FSA Food Hygiene Ratings register,
+which covers every UK food business regardless of legal structure. Mark a row
+contacted once you've reached out yourself — nothing here is drafted or sent
+automatically.</p>
+<label style="font-size:12px;color:var(--muted)">
+  <input type="checkbox" id="uncontactedOnly" onchange="loadSoleTraders()"> Show uncontacted only
+</label>
+<div class="scroll" id="soletraders" style="margin-top:10px"></div>
+<script>
+function esc(s) {
+  const d = document.createElement('div'); d.textContent = (s === null || s === undefined) ? '' : s;
+  return d.innerHTML;
+}
+async function markContacted(id, contacted) {
+  await fetch('/api/sole-traders/' + id + '/contacted', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({contacted: contacted})
+  });
+  loadSoleTraders();
+}
+function loadSoleTraders() {
+  const uncontactedOnly = document.getElementById('uncontactedOnly').checked;
+  fetch('/api/sole-traders' + (uncontactedOnly ? '?uncontacted_only=true' : ''))
+    .then(r => r.json()).then(rows => {
+    if (!rows.length) { document.getElementById('soletraders').innerHTML =
+      '<div class="empty">Nothing yet — run /cron/discover-sole-traders to populate this.</div>';
+      return; }
+    let h = '<table><thead><tr><th>Business</th><th>Type</th><th>Address</th>'
+          + '<th>Postcode</th><th>Phone</th><th>Local authority</th><th>Discovered</th>'
+          + '<th>Status</th><th></th></tr></thead><tbody>';
+    for (const s of rows) {
+      const contacted = !!s.contacted_at;
+      h += '<tr><td>' + esc(s.business_name) + '</td><td>' + esc(s.business_type) + '</td>'
+         + '<td>' + esc(s.address) + '</td><td>' + esc(s.postcode) + '</td>'
+         + '<td>' + esc(s.phone || '—') + '</td><td>' + esc(s.local_authority) + '</td>'
+         + '<td>' + esc(s.discovered_at) + '</td>'
+         + '<td>' + (contacted ? 'Contacted' : 'Not yet') + '</td>'
+         + '<td><button onclick="markContacted(\\'' + s.id + '\\', ' + (!contacted) + ')">'
+         + (contacted ? 'Mark uncontacted' : 'Mark contacted') + '</button></td></tr>';
+    }
+    document.getElementById('soletraders').innerHTML = h + '</tbody></table>';
+  });
+}
+loadSoleTraders();
+</script>"""
+
+
 def build_router(cfg) -> APIRouter:
     router = APIRouter()
     optional = security.optional_session(cfg)
@@ -306,5 +358,7 @@ def build_router(cfg) -> APIRouter:
     router.get("/investors", response_class=HTMLResponse)(_guarded("Investors", INVESTORS_BODY))
     router.get("/approvals", response_class=HTMLResponse)(_guarded("Approvals", APPROVALS_BODY))
     router.get("/clients", response_class=HTMLResponse)(_guarded("Clients", CLIENTS_BODY))
+    router.get("/sole-traders", response_class=HTMLResponse)(
+        _guarded("Sole traders", SOLE_TRADERS_BODY))
 
     return router

@@ -69,6 +69,47 @@ def build_router(cfg) -> APIRouter:
         finally:
             conn.close()
 
+    @router.get("/api/sole-traders")
+    def list_sole_traders(uncontacted_only: bool = False, limit: int = 200,
+                            claims=Depends(require_api)):
+        conn = db.connect(cfg.database_url)
+        try:
+            with conn.cursor() as cur:
+                if uncontacted_only:
+                    cur.execute(
+                        "select * from sole_trader_leads where contacted_at is null "
+                        "order by discovered_at desc limit %s", (min(limit, 1000),))
+                else:
+                    cur.execute(
+                        "select * from sole_trader_leads order by discovered_at desc limit %s",
+                        (min(limit, 1000),))
+                return cur.fetchall()
+        finally:
+            conn.close()
+
+    class ContactedUpdate(BaseModel):
+        contacted: bool
+        notes: Optional[str] = None
+
+    @router.post("/api/sole-traders/{lead_id}/contacted")
+    def mark_sole_trader_contacted(lead_id: str, body: ContactedUpdate,
+                                     claims=Depends(require_api)):
+        conn = db.connect(cfg.database_url)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "update sole_trader_leads set "
+                    "contacted_at = case when %s then now() else null end, "
+                    "notes = coalesce(%s, notes) where id = %s returning id",
+                    (body.contacted, body.notes, lead_id))
+                if cur.fetchone() is None:
+                    raise HTTPException(status_code=404, detail="sole trader lead not found")
+            db.audit(conn, claims.get("email", "human"), "sole_trader_contacted_change",
+                      "sole_trader_leads", lead_id, {"contacted": body.contacted})
+            return {"ok": True}
+        finally:
+            conn.close()
+
     @router.post("/api/leads/{lead_id}/stage")
     def update_stage(lead_id: str, body: StageUpdate, claims=Depends(require_api)):
         conn = db.connect(cfg.database_url)

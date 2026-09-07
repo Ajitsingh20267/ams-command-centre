@@ -49,6 +49,16 @@ jobs:
           curl -s -X POST "${{ secrets.APP_URL }}/cron/discover-contacts-uk" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 280
 
+      - name: Discover sole traders (FSA Food Hygiene Ratings — unscored)
+        # No CONNECTION REQUIRED gate: the FSA API needs no key at all.
+        # Feeds a separate, unscored list (sole_trader_leads) rather than
+        # the main pipeline -- see app/agents/sole_trader_discovery.py for
+        # why sole traders can't be gated the same way limited companies
+        # are (no filed accounts, no officers/PSC data exists for them).
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/cron/discover-sole-traders" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
+
       - name: Draft outreach for eligible leads
         # Returns ok:false with CONNECTION REQUIRED until Graph + Anthropic
         # are configured — expected, not a failure to alert on.

@@ -393,3 +393,29 @@ create table if not exists agent_cursors (
   value       text not null,
   updated_at  timestamptz not null default now()
 );
+
+-- Sole traders and other unincorporated small businesses never appear on
+-- Companies House (it's a *companies* register) -- no filed accounts, no
+-- officers, no charges, so the fee-payer evidence gate the main `leads`
+-- pipeline uses simply has nothing to check against. Rather than force
+-- them through a gate they can't be honestly measured by (or invent
+-- evidence that doesn't exist), they get their own unscored list: a real
+-- name and address from a real government data source, for a human to
+-- judge and follow up on directly. See app/agents/sole_trader_discovery.py.
+create table if not exists sole_trader_leads (
+  id                uuid primary key default gen_random_uuid(),
+  source            text not null,     -- e.g. 'FSA Food Hygiene Ratings'
+  source_id         text not null,     -- the source's own record id (e.g. FHRSID)
+  business_name     text not null,
+  business_type     text,
+  address           text,
+  postcode          text,
+  phone             text,
+  local_authority   text,
+  rating_value      text,
+  source_url        text,
+  discovered_at     timestamptz not null default now(),
+  contacted_at      timestamptz,
+  notes             text,
+  unique (source, source_id)
+);

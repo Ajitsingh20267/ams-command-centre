@@ -14,7 +14,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Header, HTTPException
 
 from .. import db
-from ..agents import claude_agent, companies_house, contact_discovery, lead_generation
+from ..agents import (claude_agent, companies_house, contact_discovery, lead_generation,
+                        sole_trader_discovery)
 from ..agents.graph_client import GraphClient
 
 
@@ -66,6 +67,19 @@ def build_router(cfg) -> APIRouter:
         conn = db.connect(cfg.database_url)
         try:
             summary = contact_discovery.run(conn, cfg)
+            return {"ok": True, "summary": summary}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        finally:
+            conn.close()
+
+    @router.post("/cron/discover-sole-traders")
+    def discover_sole_traders(x_cron_secret: str = Header(default="")):
+        # No CONNECTION REQUIRED gate: the FSA API needs no key at all.
+        _check(x_cron_secret)
+        conn = db.connect(cfg.database_url)
+        try:
+            summary = sole_trader_discovery.run(conn, cfg)
             return {"ok": True, "summary": summary}
         except Exception as e:
             return {"ok": False, "error": str(e)}
