@@ -68,9 +68,25 @@ SIC_CODES = [
     "63110",   # data processing, hosting and related activities
     "56101",   # licensed restaurants
     "56102",   # unlicensed restaurants and cafes
+    "56103",   # take-away food shops and mobile food stands
+    "56302",   # public houses and bars
     "55100",   # hotels and similar accommodation
     "47190",   # other retail sale in non-specialised stores
+    "47110",   # retail sale in non-specialised stores, food/beverages/tobacco predominating
+    "45200",   # maintenance and repair of motor vehicles (garages, car washes)
+    "96010",   # washing and (dry-)cleaning of textile and fur products (laundrettes)
+    "96020",   # hairdressing and other beauty treatment
+    "96090",   # other service activities n.e.c. (catches remaining car washes etc.)
 ]
+# Broadened 2026-09-07 from the original advisory-sector list above to the
+# whole high-street economy — "car wash to takeaway" — per Ajit's explicit
+# direction that A.M.S. wants to work with any genuinely small UK business
+# needing capital, not just construction/real estate/tech. Verified against
+# the official Companies House/ONS SIC 2007 condensed list
+# (https://datahub.io/core/uk-sic-2007-condensed), the same source of truth
+# that caught the earlier 3-digit-vs-5-digit bug — not guessed, since a
+# wrong code here silently returns zero results for that whole sector
+# rather than an error.
 
 DESK_FORMS_NOTE = {"DEB-1": "outstanding charge", "REF-1": "outstanding charge, dated",
                      "MNA-1": "succession-shaped (age + small board)", "RDY-1": "accounts overdue"}
@@ -217,7 +233,7 @@ def run_sweep(conn, cfg) -> str:
     dedup is on (company name, country) at the DB level.
 
     Discovery volume is deliberately modest per run (PAGE_SIZE=3 per SIC
-    code, ~22 codes -> ~66 candidates, ~260 enrichment calls) rather than
+    code, ~29 codes -> ~87 candidates, ~350 enrichment calls) rather than
     fetching everything available in one go: Companies House's free tier
     allows 600 requests per 5 minutes, and a single SIC code alone can have
     six-figure match counts, so "all of it in one run" was never realistic
