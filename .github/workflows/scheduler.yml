@@ -28,20 +28,26 @@ jobs:
 
       - name: Discover leads (Companies House — UK private companies)
         # Returns ok:false with CONNECTION REQUIRED until COMPANIES_HOUSE_KEY
-        # is set — expected, not a failure to alert on.
+        # is set — expected, not a failure to alert on. --max-time is 280s,
+        # not 120s: each candidate makes up to 4 real HTTP calls (profile,
+        # officers, PSC, charges) plus a rate-limit sleep, and a run of
+        # ~60 candidates genuinely got a step-killing curl timeout (exit
+        # 28) at 120s on 2026-09-07 — a real one, not a server error.
         run: |
           curl -s -X POST "${{ secrets.APP_URL }}/cron/discover-leads-uk" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 280
 
       - name: Discover contacts (Companies House officers — UK leads)
         # Names a real, active officer for each qualifying UK lead so
         # draft-outreach has someone to address — never invents an email;
         # see app/agents/contact_discovery.py for why. Returns ok:false
         # with CONNECTION REQUIRED until COMPANIES_HOUSE_KEY is set —
-        # expected, not a failure to alert on.
+        # expected, not a failure to alert on. Same generous timeout as
+        # the sweep above, and for the same reason (one HTTP call per
+        # qualifying lead).
         run: |
           curl -s -X POST "${{ secrets.APP_URL }}/cron/discover-contacts-uk" \
-            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 280
 
       - name: Draft outreach for eligible leads
         # Returns ok:false with CONNECTION REQUIRED until Graph + Anthropic
