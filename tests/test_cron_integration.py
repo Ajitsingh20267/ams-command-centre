@@ -138,3 +138,57 @@ def test_draft_outreach_reports_connection_required_when_unconfigured(pg_conn, p
     assert r.status_code == 200
     assert r.json()["ok"] is False
     assert "CONNECTION REQUIRED" in r.json()["error"]
+
+
+def test_draft_outreach_falls_back_to_the_template_drafter_without_anthropic(pg_conn, pg_uri):
+    # Graph is configured, Anthropic deliberately is not -- the real
+    # current production state (see ams_command_centre_deployment memory:
+    # Outlook connected, Anthropic held off on zero-budget). draft-outreach
+    # must still produce a real draft in this state, via
+    # app.agents.template_drafter, not report CONNECTION REQUIRED.
+    with pg_conn.cursor() as cur:
+        cur.execute("insert into knowledge_base (category, key, content) values "
+                     "('company_info','overview','A.M.S. test overview'), "
+                     "('company_info','verified_track_record','$3.35bn test track record') "
+                     "on conflict (category, key) do nothing")
+        cur.execute("insert into companies (name, country) values "
+                     "('Template Fallback Co','United Kingdom') returning id")
+        company_id = cur.fetchone()["id"]
+        cur.execute("insert into contacts (company_id, name, role, email, email_status) "
+                     "values (%s,'John Smith','Director','john@templatefallback.example',"
+                     "'VERIFIED')", (company_id,))
+        cur.execute("insert into leads (company_id, desk, sector, geography, signal, "
+                     "signal_date, source_url, score, band, stage) values "
+                     "(%s,'DEB-1','Retail','United Kingdom','Test charge signal','2026-08-01',"
+                     "'https://example.com',80,'High','Lead') returning id", (company_id,))
+        lead_id = cur.fetchone()["id"]
+
+    os.environ.update({"MS_TENANT_ID": "t", "MS_CLIENT_ID": "c", "MS_CLIENT_SECRET": "s"})
+    os.environ["ANTHROPIC_API_KEY"] = ""
+    os.environ["ENV"] = "local"
+    import app.config
+    import app.main
+    importlib.reload(app.config)
+    importlib.reload(app.main)
+    assert app.main.cfg.ms_configured and not app.main.cfg.anthropic_configured
+
+    client = _session_client(app.main)
+    with mock.patch("app.agents.graph_client.GraphClient.create_draft",
+                     return_value={"graph_message_id": "fake-id-2", "web_link": "https://fake2"}):
+        r = client.post("/cron/draft-outreach",
+                          headers={"X-Cron-Secret": app.main.cfg.cron_secret})
+
+    assert r.status_code == 200, r.json()
+    body = r.json()
+    assert body["ok"] is True and "1 drafted" in body["summary"]
+    with pg_conn.cursor() as cur:
+        cur.execute("select subject, body_html from emails where related_lead_id=%s", (lead_id,))
+        row = cur.fetchone()
+    assert "Template Fallback Co" in row["subject"]
+    # The template's wording is fixed, hand-reviewed text (see
+    # template_drafter's docstring) -- the knowledge_base rows above are
+    # a gate proving the required facts exist, not a source the body is
+    # templated from. So this checks the real fixed output, not a
+    # substitution of the seeded content.
+    assert "Test charge signal" in row["body_html"]  # the lead's own real, verified signal
+    assert "Dear John Smith" in row["body_html"]      # the real named, verified contact

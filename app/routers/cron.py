@@ -15,7 +15,7 @@ from fastapi import APIRouter, Header, HTTPException
 
 from .. import db
 from ..agents import (claude_agent, companies_house, contact_discovery, lead_generation,
-                        sole_trader_discovery)
+                        sole_trader_discovery, template_drafter)
 from ..agents.graph_client import GraphClient
 
 
@@ -141,14 +141,15 @@ def build_router(cfg) -> APIRouter:
     def draft_outreach(x_cron_secret: str = Header(default="")):
         """Drafts touch-one emails for leads with a VERIFIED contact. Writes
         to `emails` with status='draft' and creates the actual Outlook draft
-        via Graph — never sends. If MS_* or ANTHROPIC_API_KEY are not
-        configured, returns CONNECTION REQUIRED rather than pretending."""
+        via Graph — never sends. Microsoft Graph is a hard requirement (no
+        way to create a real Outlook draft without it). Anthropic is not:
+        when it's not configured, template_drafter.draft_touch is used
+        instead — a zero-cost, fixed-wording fallback grounded in the same
+        knowledge_base table, so outreach isn't blocked purely on budget."""
         _check(x_cron_secret)
-        if not cfg.ms_configured or not cfg.anthropic_configured:
-            missing = [n for n, ok in [("Microsoft Graph", cfg.ms_configured),
-                                         ("Anthropic", cfg.anthropic_configured)] if not ok]
-            return {"ok": False, "error": f"CONNECTION REQUIRED: {', '.join(missing)} not "
-                                            f"configured — see /connect/microsoft and .env.example"}
+        if not cfg.ms_configured:
+            return {"ok": False, "error": "CONNECTION REQUIRED: Microsoft Graph not "
+                                            "configured — see /connect/microsoft and .env.example"}
 
         conn = db.connect(cfg.database_url)
         run_id = db.start_run(conn, "draft_outreach")
@@ -172,7 +173,10 @@ def build_router(cfg) -> APIRouter:
                 if db.is_suppressed(conn, lead["contact_email"]):
                     skipped_suppressed += 1
                     continue
-                copy = claude_agent.draft_touch(cfg, conn, dict(lead), "signal email")
+                if cfg.anthropic_configured:
+                    copy = claude_agent.draft_touch(cfg, conn, dict(lead), "signal email")
+                else:
+                    copy = template_drafter.draft_touch(conn, dict(lead))
                 if copy is None:
                     failed += 1
                     db.audit(conn, "draft_outreach", "draft_failed", "leads", lead["lead_id"])
