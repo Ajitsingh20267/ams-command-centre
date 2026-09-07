@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Header, HTTPException
 
 from .. import db
-from ..agents import claude_agent, companies_house, lead_generation
+from ..agents import claude_agent, companies_house, contact_discovery, lead_generation
 from ..agents.graph_client import GraphClient
 
 
@@ -50,6 +50,22 @@ def build_router(cfg) -> APIRouter:
         conn = db.connect(cfg.database_url)
         try:
             summary = companies_house.run_sweep(conn, cfg)
+            return {"ok": True, "summary": summary}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        finally:
+            conn.close()
+
+    @router.post("/cron/discover-contacts-uk")
+    def discover_contacts_uk(x_cron_secret: str = Header(default="")):
+        _check(x_cron_secret)
+        if not cfg.companies_house_configured:
+            return {"ok": False, "error": "CONNECTION REQUIRED: COMPANIES_HOUSE_KEY not "
+                                            "configured — register free at "
+                                            "developer.company-information.service.gov.uk"}
+        conn = db.connect(cfg.database_url)
+        try:
+            summary = contact_discovery.run(conn, cfg)
             return {"ok": True, "summary": summary}
         except Exception as e:
             return {"ok": False, "error": str(e)}

@@ -33,6 +33,16 @@ jobs:
           curl -s -X POST "${{ secrets.APP_URL }}/cron/discover-leads-uk" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
 
+      - name: Discover contacts (Companies House officers — UK leads)
+        # Names a real, active officer for each qualifying UK lead so
+        # draft-outreach has someone to address — never invents an email;
+        # see app/agents/contact_discovery.py for why. Returns ok:false
+        # with CONNECTION REQUIRED until COMPANIES_HOUSE_KEY is set —
+        # expected, not a failure to alert on.
+        run: |
+          curl -s -X POST "${{ secrets.APP_URL }}/cron/discover-contacts-uk" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" --max-time 120
+
       - name: Draft outreach for eligible leads
         # Returns ok:false with CONNECTION REQUIRED until Graph + Anthropic
         # are configured — expected, not a failure to alert on.
