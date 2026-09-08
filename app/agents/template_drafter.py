@@ -27,15 +27,28 @@ may be treated as approved for that yet.
 Fourth pass: Ajit supplied the firm's actual signature graphic (hand-
 coded here as table-based, inline-styled HTML — the safe subset for
 Outlook's HTML rendering) and a tightened compliance footer to replace
-the third pass's text-only signer split. That footer still states "not
+the third pass's text-only signer split. That footer still stated "not
 authorised by the Financial Conduct Authority" in different words, so
-the disclosure requirement from the third pass stays satisfied; the
+the disclosure requirement from the third pass stayed satisfied; the
 now-redundant in-body regulatory paragraph was removed rather than
 saying it twice. The new signature applies to every draft, not just
 UK ones, since the graphic is a firm-wide asset with no per-geography
-variant. Still zero-cost, still fixed wording grounded only in
-knowledge_base and the lead's own verified fields, still refuses to
-draft rather than invent.
+variant.
+
+Fifth pass, 2026-09-09: the FCA disclosure sentence came out of the
+footer too, on Ajit's instruction ("drop it") after he was shown the
+company's own CLAUDE.md, which has a dated 27 Aug 2026 note that
+outbound copy should not carry it at all, reasoned through a documented
+"two-box rule" — describing the firm (Box 1) isn't a financial
+promotion, so the disclosure isn't required; only content naming a
+specific investment (Box 2) would need it, which this template never
+does. This supersedes the third pass's refusal. The absolute line is
+unchanged and always was narrower than the disclosure itself: never
+claim or imply A.M.S. IS regulated/authorised — nothing here does.
+
+Still zero-cost, still fixed wording grounded only in knowledge_base
+and the lead's own verified fields, still refuses to draft rather than
+invent.
 """
 from __future__ import annotations
 
@@ -74,17 +87,25 @@ SIGNATURE_HTML = (
     f"</td></tr></table>"
 )
 
-# Exact wording supplied by Ajit 2026-09-08, replacing the earlier
-# hand-written footer -- keeps the same substance (legal entity, FCA
-# disclosure, opt-out) in a single tightened paragraph. Retains the "not
-# authorised by the FCA" disclosure; see this module's changelog above
-# for why that stays regardless of how the rest of the wording changes.
+# Wording per Ajit 2026-09-08, with the FCA disclosure sentence dropped
+# from both body and footer on 2026-09-09 -- per the dated 27 Aug 2026
+# instruction in the company's own CLAUDE.md ("Outbound copy does not
+# carry the FCA statement... out of the email body, out of the email
+# footer... supersedes the earlier position"), reasoned through that
+# document's "two-box rule": describing the firm and selling the
+# advisory engagement (Box 1) is not a financial promotion, so the
+# disclosure isn't legally required here -- only Box 2 content (naming a
+# specific investment) would need it, and this template never does that.
+# "Silence is a commercial choice and it is available" per that doc; what
+# is NEVER allowed, with or without this line, is claiming or implying
+# A.M.S. IS regulated/authorised -- this template still never says that.
+# The rest of this footer is unchanged: legal entity, non-solicitation
+# language, and the opt-out.
 FOOTER = (
     "<hr>"
     "<p style=\"font-size:11px;color:#666;line-height:1.6\">A.M.S. Capital Management "
     "Holdings Ltd, company number 17396139, registered in England and Wales. Registered "
-    "office: 5th Floor, 167-169 Great Portland Street, London W1W 5PF. A.M.S. Capital "
-    "Management is not authorised by the Financial Conduct Authority. The firm provides "
+    "office: 5th Floor, 167-169 Great Portland Street, London W1W 5PF. The firm provides "
     "corporate advisory services and works alongside appropriately authorised advisers "
     "and counterparties where regulated activities are involved. This message describes "
     "the firm and its services only. It is not an invitation or inducement to engage in "

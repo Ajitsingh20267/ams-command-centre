@@ -4,10 +4,13 @@ when a required fact is missing, and never emits any of the banned
 phrases or a false regulatory/performance claim from brand/house_voice
 and compliance/never_claim.
 
-Rewritten several times on 2026-09-08 alongside template_drafter.py
-itself — see that module's docstring for the full changelog. Latest:
-Ajit supplied the firm's real signature graphic and a tightened
-compliance footer, replacing the earlier text-only signer split.
+Rewritten several times on 2026-09-08 and 09 alongside template_drafter.py
+itself — see that module's docstring for the full changelog. Latest: the
+FCA disclosure sentence came out of the footer entirely (2026-09-09,
+Ajit's "drop it" after the company's own CLAUDE.md two-box-rule note),
+so this file now asserts its absence rather than its presence — the
+line that never moves either way is the absolute one: never claim or
+imply A.M.S. IS regulated/authorised.
 """
 from app.agents import template_drafter
 
@@ -35,16 +38,15 @@ def _seed_kb(conn, extra=None):
 
 BANNED_PHRASES = ["reach out", "circle back", "touch base", "quick question",
                     "i hope this email finds you well", "just following up", "!"]
-# Claims that would be false or non-compliant if made AFFIRMATIVELY (compliance/
+# Claims that are false or non-compliant if made AFFIRMATIVELY (compliance/
 # never_claim: never claim A.M.S. is regulated/authorised/will fund/lend/invest,
-# never guarantee an outcome). The firm's own approved reference sequence
-# (Sales Department/outreach/sequences/maddox-planning-sequence.md) DOES say
-# "not authorised by the Financial Conduct Authority" -- that's a required
-# honest disclosure, not a forbidden claim -- so this checks for the false
-# form specifically rather than banning the words outright.
+# never guarantee an outcome) -- this stays absolute regardless of whether the
+# disclosure sentence itself is present or not.
 FORBIDDEN_FALSE_CLAIMS = ["a.m.s. is regulated", "a.m.s. is authorised", "we are regulated",
                             "will fund", "will lend", "will invest in", "guarantee"]
-REQUIRED_DISCLOSURE = "is not authorised by the financial conduct authority"
+# The disclosure sentence was deliberately dropped 2026-09-09 (see module
+# docstring) -- this is now checked as an absence, not a presence.
+DROPPED_DISCLOSURE = "authorised by the financial conduct authority"
 
 
 def test_greeting_name_normalises_companies_house_surname_first_format():
@@ -140,7 +142,7 @@ def test_draft_refuses_when_a_required_kb_fact_is_missing(pg_conn):
     assert result is None
 
 
-def test_draft_discloses_regulatory_position_and_never_makes_a_false_claim(pg_conn):
+def test_draft_never_makes_a_false_claim_and_drops_the_fca_disclosure(pg_conn):
     _seed_kb(pg_conn)
     for lead in [
         {"company": "No Signal Ltd", "contact_name": None, "desk": None, "signal": None},
@@ -158,4 +160,4 @@ def test_draft_discloses_regulatory_position_and_never_makes_a_false_claim(pg_co
         # must never say that word to the recipient (reads as an accusation),
         # even though it's exactly what the internal signal says.
         assert "overdue" not in text
-        assert REQUIRED_DISCLOSURE in text
+        assert DROPPED_DISCLOSURE not in text
