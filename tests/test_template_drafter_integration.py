@@ -4,9 +4,12 @@ when a required fact is missing, and never emits any of the banned
 phrases or a false regulatory/performance claim from brand/house_voice
 and compliance/never_claim.
 
-Rewritten 2026-09-08 alongside template_drafter.py itself, after the
-first batch of real drafts read as a mail-merge rather than a cold
-email — see that module's docstring for what changed and why.
+Rewritten twice on 2026-09-08 alongside template_drafter.py itself: once
+after the first batch of real drafts read as a mail-merge rather than a
+cold email, and again after Ajit asked for a fuller institutional
+introduction (who A.M.S. is, what it does, how it found the recipient,
+why a call matters) — see that module's docstring for what changed and
+why each time.
 """
 from app.agents import template_drafter
 
@@ -57,7 +60,9 @@ def test_greeting_name_normalises_companies_house_surname_first_format():
 def test_draft_uses_real_kb_facts_and_a_desk_specific_real_observation(pg_conn):
     _seed_kb(pg_conn)
     lead = {"company": "Test Garage Ltd", "contact_name": "SMITH, Jane", "desk": "DEB-1",
-             "signal": "Charge registered 2024-02-14, 1 outstanding charge(s) on the register."}
+             "signal": "Charge registered 2024-02-14, 1 outstanding charge(s) on the register.",
+             "source_url": "https://find-and-update.company-information.service.gov.uk/"
+                             "company/00000001"}
 
     result = template_drafter.draft_touch(pg_conn, lead)
 
@@ -72,6 +77,23 @@ def test_draft_uses_real_kb_facts_and_a_desk_specific_real_observation(pg_conn):
     assert "secured lending in place" in text  # the DEB-1 desk's real, translated hook
     assert "$3.35bn" in result["body_html"]  # the real KB figure, not invented
     assert "ajit sohal" in text  # signed by a real named human, not just the firm
+    assert "managing partner" in text  # real title, institutional signature
+    assert "new york" in text and "dubai" in text  # the global-offices "big firm" signal
+    # honest, source-specific answer to "how did you get my details"
+    assert "companies house" in text
+    assert "we do not purchase contact lists" in text
+
+
+def test_source_description_reflects_the_leads_real_source_url():
+    ch_url = "https://find-and-update.company-information.service.gov.uk/company/123"
+    sec_url = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany"
+    assert "companies house" in template_drafter._source_description(ch_url).lower()
+    assert "securities and exchange commission" in \
+        template_drafter._source_description(sec_url).lower()
+    # Never invents a specific source it wasn't actually given.
+    assert template_drafter._source_description(None) == "public company records"
+    assert template_drafter._source_description("https://example.com") == \
+        "public company records"
 
 
 def test_draft_falls_back_to_a_generic_real_opener_when_desk_is_unknown(pg_conn):
