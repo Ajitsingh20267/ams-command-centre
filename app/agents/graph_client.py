@@ -54,6 +54,20 @@ class GraphClient:
         msg = r.json()
         return {"graph_message_id": msg["id"], "web_link": msg.get("webLink", "")}
 
+    def delete_draft(self, message_id: str) -> None:
+        """Deletes a message by id. Callers must only ever pass the id of a
+        message this app itself created as a draft (i.e. one recorded in our
+        own `emails` table with status='draft') — this has no way to tell a
+        draft from a sent message on its own, and Mail.Send is deliberately
+        withheld at the Azure side so this app can never have sent one, but
+        the DELETE endpoint itself doesn't know that. Used to correct a
+        draft that went out with bad wording before a human sent it, not as
+        a general mailbox-management tool."""
+        r = httpx.delete(f"{GRAPH}/users/{self._mailbox}/messages/{message_id}",
+                           headers=self._headers(), timeout=30)
+        if r.status_code not in (204, 404):  # 404: already gone, treat as success
+            r.raise_for_status()
+
     def list_recent_inbox_messages(self, since: datetime, top: int = 50) -> list:
         since_iso = since.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         params = {"$filter": f"receivedDateTime ge {since_iso}",
