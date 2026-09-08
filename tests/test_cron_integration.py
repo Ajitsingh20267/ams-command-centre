@@ -149,7 +149,9 @@ def test_draft_outreach_falls_back_to_the_template_drafter_without_anthropic(pg_
     with pg_conn.cursor() as cur:
         cur.execute("insert into knowledge_base (category, key, content) values "
                      "('company_info','overview','A.M.S. test overview'), "
-                     "('company_info','verified_track_record','$3.35bn test track record') "
+                     "('company_info','verified_track_record','$3.35bn test track record'), "
+                     "('compliance','regulatory_position','Not currently FCA authorised.'), "
+                     "('pricing','stage_two','Success fee charged to the investor.') "
                      "on conflict (category, key) do nothing")
         cur.execute("insert into companies (name, country) values "
                      "('Template Fallback Co','United Kingdom') returning id")
@@ -190,5 +192,5 @@ def test_draft_outreach_falls_back_to_the_template_drafter_without_anthropic(pg_
     # a gate proving the required facts exist, not a source the body is
     # templated from. So this checks the real fixed output, not a
     # substitution of the seeded content.
-    assert "Test charge signal" in row["body_html"]  # the lead's own real, verified signal
-    assert "Dear John Smith" in row["body_html"]      # the real named, verified contact
+    assert "secured lending in place" in row["body_html"]  # DEB-1's real, translated hook
+    assert "Dear John," in row["body_html"]      # the real named, verified contact
