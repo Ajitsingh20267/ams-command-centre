@@ -4,12 +4,10 @@ when a required fact is missing, and never emits any of the banned
 phrases or a false regulatory/performance claim from brand/house_voice
 and compliance/never_claim.
 
-Rewritten twice on 2026-09-08 alongside template_drafter.py itself: once
-after the first batch of real drafts read as a mail-merge rather than a
-cold email, and again after Ajit asked for a fuller institutional
-introduction (who A.M.S. is, what it does, how it found the recipient,
-why a call matters) — see that module's docstring for what changed and
-why each time.
+Rewritten several times on 2026-09-08 alongside template_drafter.py
+itself — see that module's docstring for the full changelog. Latest:
+Ajit supplied the firm's real signature graphic and a tightened
+compliance footer, replacing the earlier text-only signer split.
 """
 from app.agents import template_drafter
 
@@ -46,7 +44,7 @@ BANNED_PHRASES = ["reach out", "circle back", "touch base", "quick question",
 # form specifically rather than banning the words outright.
 FORBIDDEN_FALSE_CLAIMS = ["a.m.s. is regulated", "a.m.s. is authorised", "we are regulated",
                             "will fund", "will lend", "will invest in", "guarantee"]
-REQUIRED_DISCLOSURE = "not currently authorised by the financial conduct authority"
+REQUIRED_DISCLOSURE = "is not authorised by the financial conduct authority"
 
 
 def test_greeting_name_normalises_companies_house_surname_first_format():
@@ -76,15 +74,21 @@ def test_draft_uses_real_kb_facts_and_a_desk_specific_real_observation(pg_conn):
     assert "charge registered 2024-02-14" not in text
     assert "secured lending in place" in text  # the DEB-1 desk's real, translated hook
     assert "$3.35bn" in result["body_html"]  # the real KB figure, not invented
-    assert "ajit sohal" in text  # signed by a real named human, not just the firm
-    assert "managing partner" in text  # real title, institutional signature
     assert "new york" in text and "dubai" in text  # the global-offices "big firm" signal
     # honest, source-specific answer to "how did you get my details"
     assert "companies house" in text
     assert "we do not purchase contact lists" in text
+    # the hand-coded signature -- team name, and the clickable wordmark
+    # linking to the real site, not a named individual
+    assert "business development team" in text
+    assert template_drafter.SITE_URL in result["body_html"]
+    assert result["body_html"].count(template_drafter.SITE_URL) >= 2  # both link targets
 
 
-def test_uk_leads_sign_as_the_london_desk_not_a_named_individual(pg_conn):
+def test_signature_and_footer_are_the_same_regardless_of_geography(pg_conn):
+    # The signature graphic is a firm-wide asset, not a per-region variant
+    # -- unlike the earlier text-only "London Advisory Desk" split it
+    # replaced, UK and non-UK leads now get identical signature/footer.
     _seed_kb(pg_conn)
     uk_lead = {"company": "UK Garage Ltd", "contact_name": "SMITH, Jane", "desk": "DEB-1",
                 "geography": "United Kingdom"}
@@ -94,13 +98,10 @@ def test_uk_leads_sign_as_the_london_desk_not_a_named_individual(pg_conn):
     uk_result = template_drafter.draft_touch(pg_conn, uk_lead)
     us_result = template_drafter.draft_touch(pg_conn, us_lead)
 
-    uk_text = uk_result["body_html"].lower()
-    assert "london advisory desk" in uk_text
-    assert "ajit sohal" not in uk_text
-
-    us_text = us_result["body_html"].lower()
-    assert "ajit sohal" in us_text
-    assert "london advisory desk" not in us_text
+    assert template_drafter.SIGNATURE_HTML in uk_result["body_html"]
+    assert template_drafter.SIGNATURE_HTML in us_result["body_html"]
+    assert template_drafter.FOOTER in uk_result["body_html"]
+    assert template_drafter.FOOTER in us_result["body_html"]
 
 
 def test_source_description_reflects_the_leads_real_source_url():

@@ -10,54 +10,87 @@ required knowledge_base entry is missing, this refuses to draft rather
 than guess at wording, exactly like claude_agent.draft_touch's
 "insufficient verified information" path returning None.
 
-Rewritten three times on 2026-09-08. First pass fixed a mail-merge-
+Rewritten four times on 2026-09-08. First pass fixed a mail-merge-
 reading draft (raw audit string pasted into the email, no regulatory
 disclosure, no named signer). Second pass: a full institutional
 introduction (who A.M.S. is, what it does, what it can do for this
 specific business), an honest answer to "how did you get my details",
 and why a conversation matters, per Ajit's direction that it should read
-as coming from an established firm. Third pass: UK leads now sign as
-"London Advisory Desk" rather than Ajit Sohal by name (his direction —
-the desk, not him personally, on first-touch UK outreach); non-UK leads
-keep the named signature. Ajit also asked, separately, to drop the "not
+as coming from an established firm. Third pass: UK leads signed as
+"London Advisory Desk" rather than Ajit Sohal by name; non-UK leads kept
+the named signature. Ajit also asked, separately, to drop the "not
 authorised by the FCA" disclosure — declined, since compliance/
 regulatory_position's own text states the section 21(2)(b) FSMA approval
 route it would require "is not yet confirmed in writing", so no content
-may be treated as approved for that yet. The disclosure stays until an
-actual named, evidenced per-item approval exists. Still zero-cost, still
-fixed wording grounded only in knowledge_base and the lead's own
-verified fields, still refuses to draft rather than invent.
+may be treated as approved for that yet.
+
+Fourth pass: Ajit supplied the firm's actual signature graphic (hand-
+coded here as table-based, inline-styled HTML — the safe subset for
+Outlook's HTML rendering) and a tightened compliance footer to replace
+the third pass's text-only signer split. That footer still states "not
+authorised by the Financial Conduct Authority" in different words, so
+the disclosure requirement from the third pass stays satisfied; the
+now-redundant in-body regulatory paragraph was removed rather than
+saying it twice. The new signature applies to every draft, not just
+UK ones, since the graphic is a firm-wide asset with no per-geography
+variant. Still zero-cost, still fixed wording grounded only in
+knowledge_base and the lead's own verified fields, still refuses to
+draft rather than invent.
 """
 from __future__ import annotations
 
 REQUIRED_KB = (("company_info", "overview"), ("company_info", "verified_track_record"),
                ("compliance", "regulatory_position"), ("pricing", "stage_two"))
 
-SIGNER = "Ajit Sohal"
-SIGNER_LINE_DEFAULT = f"{SIGNER}<br>Managing Partner<br>A.M.S. Capital Management"
-# UK leads sign as the desk, not a named individual, per Ajit's direction
-# 2026-09-08 -- non-UK leads (SEC EDGAR, US-sourced) keep the named signer.
-SIGNER_LINE_UK = "London Advisory Desk<br>A.M.S. Capital Management"
+# Hand-coded HTML signature matching the firm's actual signature graphic
+# (image supplied by Ajit 2026-09-08), rebuilt as table-based markup with
+# inline styles only -- the safe subset for Outlook's HTML rendering,
+# which does not reliably support external stylesheets or modern CSS
+# layout. The wordmark and the site line both link to the firm's real
+# site. Applies to every draft regardless of desk or geography -- this
+# replaced the earlier text-only "Ajit Sohal" / "London Advisory Desk"
+# split, which was a stand-in for not having a real designed signature
+# yet.
+SITE_URL = "https://www.amscapital.co.uk"
+_INK = "#1c3556"
 
+SIGNATURE_HTML = (
+    f"<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" "
+    f"style=\"font-family:Arial,Helvetica,sans-serif\">"
+    f"<tr><td style=\"font-size:12px;line-height:1.6;color:{_INK};padding-bottom:10px\">"
+    f"Business Development Team<br>London Office<br>"
+    f"<a href=\"{SITE_URL}\" style=\"color:{_INK};text-decoration:none\">www.amscapital.co.uk</a>"
+    f"</td></tr>"
+    f"<tr><td>"
+    f"<a href=\"{SITE_URL}\" style=\"text-decoration:none\">"
+    f"<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>"
+    f"<td style=\"font-family:Georgia,'Times New Roman',serif;font-size:30px;"
+    f"font-weight:bold;color:{_INK};padding-right:12px\">A.M.S.</td>"
+    f"<td style=\"font-family:Georgia,'Times New Roman',serif;font-size:14px;"
+    f"color:{_INK};letter-spacing:1px;line-height:1.3;"
+    f"border-top:1.5px solid {_INK};border-bottom:1.5px solid {_INK};"
+    f"padding:3px 0\">CAPITAL<br>MANAGEMENT</td>"
+    f"</tr></table></a>"
+    f"</td></tr></table>"
+)
 
-def _signer_line(geography: str) -> str:
-    return SIGNER_LINE_UK if geography == "United Kingdom" else SIGNER_LINE_DEFAULT
-
+# Exact wording supplied by Ajit 2026-09-08, replacing the earlier
+# hand-written footer -- keeps the same substance (legal entity, FCA
+# disclosure, opt-out) in a single tightened paragraph. Retains the "not
+# authorised by the FCA" disclosure; see this module's changelog above
+# for why that stays regardless of how the rest of the wording changes.
 FOOTER = (
     "<hr>"
-    "<p style=\"font-size:12px;color:#666\">A.M.S. Capital Management Holdings Ltd &middot; "
-    "Registered in England and Wales, company number 17396139<br>"
-    "5th Floor, 167-169 Great Portland Street, London W1W 5PF &middot; "
-    "London &middot; New York &middot; Dubai &middot; Delhi &middot; Singapore<br>"
-    "invest@amscapital.co.uk</p>"
-    "<p style=\"font-size:12px;color:#666\">A.M.S. Capital Management Holdings Ltd provides "
-    "corporate advisory services. It does not manage client money or hold client assets. "
-    "Where regulated activities are involved, the firm works alongside appropriately "
-    "authorised advisers and counterparties. Nothing in this message is an offer, a "
-    "solicitation, or a financial promotion, and no representation is made that capital "
-    "will be raised on any mandate.</p>"
-    "<p style=\"font-size:12px;color:#666\">If you would prefer not to hear from us, reply "
-    "with \"remove\" and we will delete your details.</p>"
+    "<p style=\"font-size:11px;color:#666;line-height:1.6\">A.M.S. Capital Management "
+    "Holdings Ltd, company number 17396139, registered in England and Wales. Registered "
+    "office: 5th Floor, 167-169 Great Portland Street, London W1W 5PF. A.M.S. Capital "
+    "Management is not authorised by the Financial Conduct Authority. The firm provides "
+    "corporate advisory services and works alongside appropriately authorised advisers "
+    "and counterparties where regulated activities are involved. This message describes "
+    "the firm and its services only. It is not an invitation or inducement to engage in "
+    "investment activity, it names no investment opportunity, and it should not be "
+    "relied upon as advice. If you would prefer not to receive further correspondence, "
+    "reply with the word REMOVE and we will suppress this address permanently.</p>"
 )
 
 # Per-desk observation: what the sourcing agent actually evidenced, restated
@@ -154,7 +187,6 @@ def draft_touch(conn, lead: dict) -> dict | None:
     observation = (_DESK_OBSERVATION.get(desk) or _DEFAULT_OBSERVATION).format(company=company)
     question = _DESK_QUESTION.get(desk) or _DEFAULT_QUESTION
     source_description = _source_description(lead.get("source_url"))
-    signer_line = _signer_line(lead.get("geography"))
 
     subject = f"A.M.S. Capital Management — capital advisory for {company}"
 
@@ -180,17 +212,12 @@ def draft_touch(conn, lead: dict) -> dict | None:
         f"through {source_description}, and this email address from your own published "
         f"contact information -- we do not purchase contact lists.</p>"
 
-        f"<p>We are a corporate advisory firm and are not currently authorised by the "
-        f"Financial Conduct Authority -- we say that upfront because you would find it "
-        f"anyway, and we work alongside appropriately authorised counterparties where "
-        f"regulated activities arise.</p>"
-
         f"<p>Every mandate is different, and the right structure and the right investors "
         f"depend on specifics an email cannot cover -- that is why a short call, not a "
         f"long email exchange, is the fastest way to find out whether this is worth "
         f"pursuing, with no obligation either way. {question}</p>"
 
-        f"<p>{signer_line}</p>"
+        f"{SIGNATURE_HTML}"
         f"{FOOTER}"
     )
     return {"subject": subject, "body_html": body_html}
