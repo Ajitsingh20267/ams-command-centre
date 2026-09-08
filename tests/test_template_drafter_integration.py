@@ -84,6 +84,25 @@ def test_draft_uses_real_kb_facts_and_a_desk_specific_real_observation(pg_conn):
     assert "we do not purchase contact lists" in text
 
 
+def test_uk_leads_sign_as_the_london_desk_not_a_named_individual(pg_conn):
+    _seed_kb(pg_conn)
+    uk_lead = {"company": "UK Garage Ltd", "contact_name": "SMITH, Jane", "desk": "DEB-1",
+                "geography": "United Kingdom"}
+    us_lead = {"company": "US Garage Inc", "contact_name": "Jane Smith", "desk": "DEB-1",
+                "geography": "USA"}
+
+    uk_result = template_drafter.draft_touch(pg_conn, uk_lead)
+    us_result = template_drafter.draft_touch(pg_conn, us_lead)
+
+    uk_text = uk_result["body_html"].lower()
+    assert "london advisory desk" in uk_text
+    assert "ajit sohal" not in uk_text
+
+    us_text = us_result["body_html"].lower()
+    assert "ajit sohal" in us_text
+    assert "london advisory desk" not in us_text
+
+
 def test_source_description_reflects_the_leads_real_source_url():
     ch_url = "https://find-and-update.company-information.service.gov.uk/company/123"
     sec_url = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany"

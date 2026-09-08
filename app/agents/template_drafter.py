@@ -10,16 +10,23 @@ required knowledge_base entry is missing, this refuses to draft rather
 than guess at wording, exactly like claude_agent.draft_touch's
 "insufficient verified information" path returning None.
 
-Rewritten twice on 2026-09-08. First pass fixed a mail-merge-reading
-draft (raw audit string pasted into the email, no regulatory disclosure,
-no named signer). Ajit's second round of feedback: it should read as
-coming from an established firm, not a one-line personal note — a full
+Rewritten three times on 2026-09-08. First pass fixed a mail-merge-
+reading draft (raw audit string pasted into the email, no regulatory
+disclosure, no named signer). Second pass: a full institutional
 introduction (who A.M.S. is, what it does, what it can do for this
-specific business), an honest answer to "how did you get my details"
-(the natural first reaction to an unsolicited email), and why a
-conversation rather than an email exchange is the right next step. Still
-zero-cost, still fixed wording grounded only in knowledge_base and the
-lead's own verified fields, still refuses to draft rather than invent.
+specific business), an honest answer to "how did you get my details",
+and why a conversation matters, per Ajit's direction that it should read
+as coming from an established firm. Third pass: UK leads now sign as
+"London Advisory Desk" rather than Ajit Sohal by name (his direction —
+the desk, not him personally, on first-touch UK outreach); non-UK leads
+keep the named signature. Ajit also asked, separately, to drop the "not
+authorised by the FCA" disclosure — declined, since compliance/
+regulatory_position's own text states the section 21(2)(b) FSMA approval
+route it would require "is not yet confirmed in writing", so no content
+may be treated as approved for that yet. The disclosure stays until an
+actual named, evidenced per-item approval exists. Still zero-cost, still
+fixed wording grounded only in knowledge_base and the lead's own
+verified fields, still refuses to draft rather than invent.
 """
 from __future__ import annotations
 
@@ -27,7 +34,14 @@ REQUIRED_KB = (("company_info", "overview"), ("company_info", "verified_track_re
                ("compliance", "regulatory_position"), ("pricing", "stage_two"))
 
 SIGNER = "Ajit Sohal"
-SIGNER_LINE = f"{SIGNER}<br>Managing Partner<br>A.M.S. Capital Management"
+SIGNER_LINE_DEFAULT = f"{SIGNER}<br>Managing Partner<br>A.M.S. Capital Management"
+# UK leads sign as the desk, not a named individual, per Ajit's direction
+# 2026-09-08 -- non-UK leads (SEC EDGAR, US-sourced) keep the named signer.
+SIGNER_LINE_UK = "London Advisory Desk<br>A.M.S. Capital Management"
+
+
+def _signer_line(geography: str) -> str:
+    return SIGNER_LINE_UK if geography == "United Kingdom" else SIGNER_LINE_DEFAULT
 
 FOOTER = (
     "<hr>"
@@ -140,6 +154,7 @@ def draft_touch(conn, lead: dict) -> dict | None:
     observation = (_DESK_OBSERVATION.get(desk) or _DEFAULT_OBSERVATION).format(company=company)
     question = _DESK_QUESTION.get(desk) or _DEFAULT_QUESTION
     source_description = _source_description(lead.get("source_url"))
+    signer_line = _signer_line(lead.get("geography"))
 
     subject = f"A.M.S. Capital Management — capital advisory for {company}"
 
@@ -175,7 +190,7 @@ def draft_touch(conn, lead: dict) -> dict | None:
         f"long email exchange, is the fastest way to find out whether this is worth "
         f"pursuing, with no obligation either way. {question}</p>"
 
-        f"<p>{SIGNER_LINE}</p>"
+        f"<p>{signer_line}</p>"
         f"{FOOTER}"
     )
     return {"subject": subject, "body_html": body_html}
