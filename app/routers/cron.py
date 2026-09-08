@@ -138,14 +138,20 @@ def build_router(cfg) -> APIRouter:
             conn.close()
 
     @router.post("/cron/draft-outreach")
-    def draft_outreach(x_cron_secret: str = Header(default="")):
+    def draft_outreach(x_cron_secret: str = Header(default=""), limit: int = 20):
         """Drafts touch-one emails for leads with a VERIFIED contact. Writes
         to `emails` with status='draft' and creates the actual Outlook draft
         via Graph — never sends. Microsoft Graph is a hard requirement (no
         way to create a real Outlook draft without it). Anthropic is not:
         when it's not configured, template_drafter.draft_touch is used
         instead — a zero-cost, fixed-wording fallback grounded in the same
-        knowledge_base table, so outreach isn't blocked purely on budget."""
+        knowledge_base table, so outreach isn't blocked purely on budget.
+
+        `limit` defaults to 20 (the hourly scheduler's setting — a real
+        request budget for an unattended run, not an arbitrary cap) and can
+        be raised for a one-off manual catch-up, e.g. `?limit=1000`, to
+        clear a backlog of newly-VERIFIED contacts in one call instead of
+        waiting out several hourly ticks."""
         _check(x_cron_secret)
         if not cfg.ms_configured:
             return {"ok": False, "error": "CONNECTION REQUIRED: Microsoft Graph not "
@@ -164,7 +170,7 @@ def build_router(cfg) -> APIRouter:
                     "join contacts ct on ct.company_id = l.company_id "
                     "where l.stage = 'Lead' and l.score >= 60 and ct.email_status = 'VERIFIED' "
                     "and not exists (select 1 from emails e where e.related_lead_id = l.id "
-                    "and e.direction = 'outbound_draft') limit 20")
+                    "and e.direction = 'outbound_draft') limit %s", (limit,))
                 candidates = cur.fetchall()
 
             graph_client = GraphClient(cfg, cfg.ms_mailbox)
