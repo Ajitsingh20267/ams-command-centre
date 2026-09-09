@@ -234,9 +234,21 @@ create table if not exists emails (
                              -- WRONG PERSON / INVESTOR / ANGRY / UNCLASSIFIED
   status            text not null default 'draft'
                     check (status in ('draft', 'approved_by_human', 'observed_sent',
-                      'received', 'handled')),
+                      'received', 'handled', 'bounced')),
   created_at        timestamptz not null default now()
 );
+
+-- 'bounced' added 2026-09-09, after a real delivery failure on a draft the
+-- human had sent (contact@ayuthaya.co) — the address was published on the
+-- company's own site, so "on file" never meant "verified deliverable", only
+-- "verified as the company's own stated contact". Widen the existing check
+-- constraint on already-provisioned databases too (CREATE TABLE IF NOT
+-- EXISTS above only applies to a fresh one) -- drop/re-add is idempotent,
+-- safe to run every time this file runs.
+alter table emails drop constraint if exists emails_status_check;
+alter table emails add constraint emails_status_check
+  check (status in ('draft', 'approved_by_human', 'observed_sent', 'received',
+    'handled', 'bounced'));
 
 create table if not exists conversations (
   id            uuid primary key default gen_random_uuid(),

@@ -194,3 +194,76 @@ def test_draft_outreach_falls_back_to_the_template_drafter_without_anthropic(pg_
     # substitution of the seeded content.
     assert "secured lending in place" in row["body_html"]  # DEB-1's real, translated hook
     assert "Dear John," in row["body_html"]      # the real named, verified contact
+
+
+def test_mark_bounced_reverts_the_contact_and_lead(pg_conn, pg_uri):
+    # Real scenario, 2026-09-09: a draft to a VERIFIED, published contact
+    # bounced after Ajit sent it -- "published on the company's own site"
+    # was never the same claim as "confirmed deliverable". This proves the
+    # revert path a human triggers by hand when Outlook shows a bounce.
+    with pg_conn.cursor() as cur:
+        cur.execute("insert into companies (name, country) values "
+                     "('Bounced Co','United Kingdom') returning id")
+        company_id = cur.fetchone()["id"]
+        cur.execute("insert into contacts (company_id, name, role, email, email_status, "
+                     "source) values (%s,'Jane Doe','Director','jane@bounced.example',"
+                     "'VERIFIED','email verified via bounced.example/contact (2026-09-08)')",
+                     (company_id,))
+        cur.execute("insert into leads (company_id, desk, sector, geography, signal, "
+                     "signal_date, source_url, score, band, stage) values "
+                     "(%s,'DEB-1','Retail','United Kingdom','Test signal','2026-08-01',"
+                     "'https://example.com',80,'High','Contacted') returning id", (company_id,))
+        lead_id = cur.fetchone()["id"]
+        cur.execute("insert into emails (direction, mailbox, to_address, subject, body_html, "
+                     "graph_message_id, web_link, related_lead_id, status) values "
+                     "('outbound_draft','invest@amscapital.co.uk','jane@bounced.example',"
+                     "'Test','<p>Test</p>','fake-id','https://fake',%s,'draft')", (lead_id,))
+
+    main = _app_with_full_config(pg_uri)
+    client = _session_client(main)
+
+    r = client.post("/cron/mark-bounced", params={"to_address": "jane@bounced.example"},
+                      headers={"X-Cron-Secret": main.cfg.cron_secret})
+
+    assert r.status_code == 200, r.json()
+    assert r.json()["ok"] is True
+
+    with pg_conn.cursor() as cur:
+        cur.execute("select status from emails where to_address='jane@bounced.example'")
+        assert cur.fetchone()["status"] == "bounced"
+        cur.execute("select email_status, source from contacts where company_id=%s", (company_id,))
+        contact = cur.fetchone()
+        assert contact["email_status"] == "UNKNOWN"
+        assert "BOUNCED" in contact["source"]
+        cur.execute("select stage from leads where id=%s", (lead_id,))
+        assert cur.fetchone()["stage"] == "Lead"
+
+
+def test_mark_bounced_never_clobbers_a_lead_that_moved_on_a_different_way(pg_conn, pg_uri):
+    # If a lead progressed past Contacted for some other real reason (a
+    # reply, a manual stage change), a later bounce report on the same
+    # address must not silently drag it back to Lead.
+    with pg_conn.cursor() as cur:
+        cur.execute("insert into companies (name, country) values "
+                     "('Progressed Co','United Kingdom') returning id")
+        company_id = cur.fetchone()["id"]
+        cur.execute("insert into leads (company_id, desk, sector, geography, signal, "
+                     "signal_date, source_url, score, band, stage) values "
+                     "(%s,'DEB-1','Retail','United Kingdom','Test signal','2026-08-01',"
+                     "'https://example.com',80,'High','Conversation') returning id", (company_id,))
+        lead_id = cur.fetchone()["id"]
+        cur.execute("insert into emails (direction, mailbox, to_address, subject, body_html, "
+                     "graph_message_id, web_link, related_lead_id, status) values "
+                     "('outbound_draft','invest@amscapital.co.uk','progressed@bounced.example',"
+                     "'Test','<p>Test</p>','fake-id-2','https://fake2',%s,'draft')", (lead_id,))
+
+    main = _app_with_full_config(pg_uri)
+    client = _session_client(main)
+
+    r = client.post("/cron/mark-bounced", params={"to_address": "progressed@bounced.example"},
+                      headers={"X-Cron-Secret": main.cfg.cron_secret})
+
+    assert r.status_code == 200, r.json()
+    with pg_conn.cursor() as cur:
+        cur.execute("select stage from leads where id=%s", (lead_id,))
+        assert cur.fetchone()["stage"] == "Conversation"  # untouched

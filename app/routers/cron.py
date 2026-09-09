@@ -327,4 +327,57 @@ def build_router(cfg) -> APIRouter:
         finally:
             conn.close()
 
+    @router.post("/cron/mark-bounced")
+    def mark_bounced(to_address: str, x_cron_secret: str = Header(default="")):
+        """Records a real delivery failure a human found in Outlook (a bounce
+        notification is not something this app can see on its own — Graph is
+        never given read access to search the whole mailbox for one, only to
+        list recent inbox messages for reply classification, and an NDR
+        doesn't reliably look like a normal reply). Call this by hand when
+        told a specific address bounced.
+
+        A published email being wrong is a real, expected outcome of manual
+        verification against a company's own website -- "published on their
+        site" was never a claim of "confirmed deliverable", only "the
+        company's own stated contact route". Reverts the contact to UNKNOWN
+        (never left VERIFIED with a known-dead address) and the lead to
+        'Lead' (only if it's still sitting at 'Contacted' -- never clobbers a
+        real conversation that happened some other way) so it re-enters the
+        normal pipeline once a working address is found."""
+        _check(x_cron_secret)
+        conn = db.connect(cfg.database_url)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "select id, related_lead_id from emails where direction='outbound_draft' "
+                    "and lower(to_address) = lower(%s) order by created_at desc limit 1",
+                    (to_address,))
+                email_row = cur.fetchone()
+            if email_row is None:
+                return {"ok": False, "error": f"no outbound draft found for {to_address}"}
+
+            with conn.cursor() as cur:
+                cur.execute("update emails set status='bounced' where id=%s",
+                             (email_row["id"],))
+                cur.execute(
+                    "update contacts set email_status='UNKNOWN', "
+                    "source = source || ' | BOUNCED -- undeliverable, reverted from VERIFIED "
+                    "(' || now()::date || ')' "
+                    "where email is not null and lower(email) = lower(%s)", (to_address,))
+                reverted_lead = None
+                if email_row["related_lead_id"]:
+                    cur.execute(
+                        "update leads set stage='Lead', updated_at=now() "
+                        "where id=%s and stage='Contacted' returning id",
+                        (email_row["related_lead_id"],))
+                    row = cur.fetchone()
+                    reverted_lead = row["id"] if row else None
+            db.audit(conn, "mark_bounced", "email_bounced", "emails", email_row["id"],
+                      {"to_address": to_address, "lead_reverted": bool(reverted_lead)})
+            return {"ok": True, "summary": f"{to_address} marked bounced; contact reverted to "
+                                              f"UNKNOWN; lead reverted to Lead: "
+                                              f"{bool(reverted_lead)}"}
+        finally:
+            conn.close()
+
     return router
